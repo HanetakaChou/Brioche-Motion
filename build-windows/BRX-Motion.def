@@ -1,0 +1,6 @@
+EXPORTS
+	brx_motion_create_video_capture
+	brx_motion_destory_video_capture
+	brx_motion_create_video_detector
+	brx_motion_destory_video_detector
+	brx_motion_create_skeleton
