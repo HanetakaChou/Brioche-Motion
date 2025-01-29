@@ -1,0 +1,108 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="build-windows">
+      <UniqueIdentifier>{d548b448-65f5-4b25-9514-34b4279e17c2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source">
+      <UniqueIdentifier>{8142365e-3845-4d6a-aa1d-924c26fc47f4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include">
+      <UniqueIdentifier>{b2210c2c-382b-42ee-8356-99da38260975}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="models">
+      <UniqueIdentifier>{1f473083-ea11-4a0c-98b0-ff5fac75b172}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty">
+      <UniqueIdentifier>{94fbe556-dc77-424e-9f5b-1634329cf4be}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\mediapipe">
+      <UniqueIdentifier>{53c3d7d3-530d-4a50-ad38-a32ec61e4a09}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\mediapipe\models">
+      <UniqueIdentifier>{41db35c1-e55e-41c2-b33d-50fc9747c774}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\mediapipe\bin">
+      <UniqueIdentifier>{403cada6-ecb9-42eb-b5ef-4cbd0d90532c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\mediapipe\bin\x64">
+      <UniqueIdentifier>{f59b733e-c22c-43d0-8948-c9304cef385b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\OpenCV">
+      <UniqueIdentifier>{39f9a254-8f61-4d92-81be-d165dbeead8a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\OpenCV\win">
+      <UniqueIdentifier>{45b4cf85-982e-4bc6-a969-9243ee6b8f3b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\OpenCV\win\x64">
+      <UniqueIdentifier>{9541b7df-2279-409b-b49e-0b4e53f5da5f}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="dllmain.cpp">
+      <Filter>build-windows</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\brx_motion_opencv_video_capture.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\brx_motion_jolt_physics_skeleton.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\models\face_landmarker_task.cpp">
+      <Filter>models</Filter>
+    </ClCompile>
+    <ClCompile Include="..\models\pose_landmarker_task.cpp">
+      <Filter>models</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\brx_motion_media_pipe_video_detector.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\internal_tflite.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="BRX-Motion.def">
+      <Filter>build-windows</Filter>
+    </None>
+    <None Include="..\models\bin2h.py">
+      <Filter>models</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\include\brx_motion.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\brx_motion_jolt_physics_skeleton.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\brx_motion_opencv_video_capture.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\brx_motion_media_pipe_video_detector.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\internal_tflite.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\brx_motion_format.h">
+      <Filter>include</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CopyFileToFolders Include="..\thirdparty\mediapipe\bin\win32\x64\mediapipe_c.dll">
+      <Filter>thirdparty\mediapipe\bin\x64</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\..\OpenCV\build\x64\vc15\bin\opencv_ffmpeg3410_64.dll">
+      <Filter>thirdparty\OpenCV\win\x64</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\..\OpenCV\build\x64\vc15\bin\opencv_world3410.dll">
+      <Filter>thirdparty\OpenCV\win\x64</Filter>
+    </CopyFileToFolders>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\thirdparty\mediapipe\models\pose_landmarker_full.task">
+      <Filter>thirdparty\mediapipe\models</Filter>
+    </CustomBuild>
+  </ItemGroup>
+</Project>

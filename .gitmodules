@@ -1,0 +1,16 @@
+[submodule "thirdparty/mediapipe"]
+	path = thirdparty/mediapipe
+	url = git@github.com:HanetakaChou/mediapipe.git
+	branch = master
+[submodule "thirdparty/OpenCV"]
+	path = thirdparty/OpenCV
+	url = git@github.com:HanetakaChou/OpenCV.git
+	branch = master
+[submodule "thirdparty/JoltPhysics"]
+	path = thirdparty/JoltPhysics
+	url = git@github.com:HanetakaChou/JoltPhysics.git
+	branch = master
+[submodule "thirdparty/OpenCL-ICD-Loader"]
+	path = thirdparty/OpenCL-ICD-Loader
+	url = git@github.com:HanetakaChou/OpenCL-ICD-Loader.git
+	branch = master
