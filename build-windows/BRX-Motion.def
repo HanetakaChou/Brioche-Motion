@@ -1,0 +1,13 @@
+EXPORTS
+	brx_motion_create_video_capture
+	brx_motion_destroy_video_capture
+	brx_motion_create_video_detector
+	brx_motion_destroy_video_detector
+	brx_motion_create_animation
+	brx_motion_destroy_animation
+	brx_motion_create_animation_instance
+	brx_motion_destroy_animation_instance
+	brx_motion_create_skeleton
+	brx_motion_destroy_skeleton
+	brx_motion_create_skeleton_instance
+	brx_motion_destroy_skeleton_instance

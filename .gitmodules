@@ -1,0 +1,12 @@
+[submodule "thirdparty/mediapipe"]
+	path = thirdparty/mediapipe
+	url = git@github.com:HanetakaChou/mediapipe.git
+	branch = master
+[submodule "thirdparty/mediapipe-model"]
+	path = thirdparty/mediapipe-model
+	url = git@github.com:BriochePuppet/mediapipe-model.git
+	branch = master
+[submodule "thirdparty/OpenCL-Headers"]
+	path = thirdparty/OpenCL-Headers
+	url = git@github.com:BriochePuppet/OpenCL-Headers.git
+	branch = master

@@ -1,0 +1,106 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="build-windows">
+      <UniqueIdentifier>{d548b448-65f5-4b25-9514-34b4279e17c2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source">
+      <UniqueIdentifier>{8142365e-3845-4d6a-aa1d-924c26fc47f4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include">
+      <UniqueIdentifier>{b2210c2c-382b-42ee-8356-99da38260975}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="models">
+      <UniqueIdentifier>{1f473083-ea11-4a0c-98b0-ff5fac75b172}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty">
+      <UniqueIdentifier>{94fbe556-dc77-424e-9f5b-1634329cf4be}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\mediapipe">
+      <UniqueIdentifier>{53c3d7d3-530d-4a50-ad38-a32ec61e4a09}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\mediapipe\bin">
+      <UniqueIdentifier>{403cada6-ecb9-42eb-b5ef-4cbd0d90532c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\mediapipe\bin\x64">
+      <UniqueIdentifier>{f59b733e-c22c-43d0-8948-c9304cef385b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\mediapipe\bin\Win32">
+      <UniqueIdentifier>{8efe72a4-720a-4043-b926-f14b064f4e50}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="dllmain.cpp">
+      <Filter>build-windows</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\brx_motion_opencv_video_capture.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\models\face_landmarker_task.cpp">
+      <Filter>models</Filter>
+    </ClCompile>
+    <ClCompile Include="..\models\pose_landmarker_task.cpp">
+      <Filter>models</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\brx_motion_media_pipe_video_detector.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\internal_tflite.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\brx_animation_ik_ccd.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\brx_animation_ik_two_joints.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\brx_animation_ik_one_joint.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\brx_motion_animation.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="BRX-Motion.def">
+      <Filter>build-windows</Filter>
+    </None>
+    <None Include="..\source\brx_animation_ik_internal.inl">
+      <Filter>source</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\include\brx_motion.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\brx_motion_opencv_video_capture.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\brx_motion_media_pipe_video_detector.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\internal_tflite.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\brx_animation_ik_ccd.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\brx_animation_ik_two_joints.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\brx_animation_ik_one_joint.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\brx_motion_animation.h">
+      <Filter>source</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CopyFileToFolders Include="..\thirdparty\mediapipe\build-windows\bin\win32\mediapipe.dll">
+      <Filter>thirdparty\mediapipe\bin\Win32</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\thirdparty\mediapipe\build-windows\bin\x64\mediapipe.dll">
+      <Filter>thirdparty\mediapipe\bin\x64</Filter>
+    </CopyFileToFolders>
+  </ItemGroup>
+</Project>
