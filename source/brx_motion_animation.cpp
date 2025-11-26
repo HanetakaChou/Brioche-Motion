@@ -1356,8 +1356,8 @@ void brx_motion_animation_skeleton_instance::step(BRX_MOTION_PHYSICS_RAGDOLL_QUA
             DirectX::XMFLOAT4 const &animation_skeleton_bind_pose_rotation_local_space = this->m_skeleton->get_animation_skeleton_bind_pose_local_space()[animation_skeleton_joint_index].m_rotation;
             DirectX::XMFLOAT3 const &animation_skeleton_bind_pose_translation_local_space = this->m_skeleton->get_animation_skeleton_bind_pose_local_space()[animation_skeleton_joint_index].m_translation;
 
-            // bind pose rotation always zero
-            assert(DirectX::XMVector4EqualInt(DirectX::XMVectorTrueInt(), DirectX::XMVectorLess(DirectX::XMVectorAbs(DirectX::XMVectorSubtract(DirectX::XMLoadFloat4(&animation_skeleton_bind_pose_rotation_local_space), DirectX::XMQuaternionIdentity())), DirectX::XMVectorReplicate(INTERNAL_ROTATION_EPSILON))));
+            // bind pose rotation always zero (only for MMD model)
+            // assert(DirectX::XMVector4EqualInt(DirectX::XMVectorTrueInt(), DirectX::XMVectorLess(DirectX::XMVectorAbs(DirectX::XMVectorSubtract(DirectX::XMLoadFloat4(&animation_skeleton_bind_pose_rotation_local_space), DirectX::XMQuaternionIdentity())), DirectX::XMVectorReplicate(INTERNAL_ROTATION_EPSILON))));
 
             DirectX::XMStoreFloat4x4(&animation_skeleton_bind_pose_local_space[animation_skeleton_joint_index], DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationQuaternion(DirectX::XMLoadFloat4(&animation_skeleton_bind_pose_rotation_local_space)), DirectX::XMMatrixTranslationFromVector(DirectX::XMLoadFloat3(&animation_skeleton_bind_pose_translation_local_space))));
 
@@ -1396,7 +1396,12 @@ void brx_motion_animation_skeleton_instance::step(BRX_MOTION_PHYSICS_RAGDOLL_QUA
                     // TODO: use current or blend?
                     this->m_video_detector_face_skeleton_joint_rotations_local_space[video_detector_face_skeleton_joint_index] = blend_rotation_local_space;
 
-                    DirectX::XMStoreFloat4x4(&animation_skeleton_animation_pose_local_space[animation_skeleton_joint_index], DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationQuaternion(DirectX::XMLoadFloat4(&blend_rotation_local_space)), DirectX::XMMatrixTranslationFromVector(DirectX::XMLoadFloat3(&this->m_skeleton->get_animation_skeleton_bind_pose_local_space()[animation_skeleton_joint_index].m_translation))));
+                    DirectX::XMFLOAT4 const &animation_skeleton_bind_pose_rotation_local_space = this->m_skeleton->get_animation_skeleton_bind_pose_local_space()[animation_skeleton_joint_index].m_rotation;
+                    DirectX::XMFLOAT3 const &animation_skeleton_bind_pose_translation_local_space = this->m_skeleton->get_animation_skeleton_bind_pose_local_space()[animation_skeleton_joint_index].m_translation;
+
+                    // bind pose rotation may not be zero (for VRM model)
+
+                    DirectX::XMStoreFloat4x4(&animation_skeleton_animation_pose_local_space[animation_skeleton_joint_index], DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationQuaternion(DirectX::XMQuaternionMultiply(DirectX::XMLoadFloat4(&animation_skeleton_bind_pose_rotation_local_space), DirectX::XMLoadFloat4(&blend_rotation_local_space))), DirectX::XMMatrixTranslationFromVector(DirectX::XMLoadFloat3(&animation_skeleton_bind_pose_translation_local_space))));
                 }
                 else
                 {
@@ -1626,9 +1631,10 @@ void brx_motion_animation_skeleton_instance::step(BRX_MOTION_PHYSICS_RAGDOLL_QUA
                 {
                     // [VRM 1.0: About Pose Data Compatibility](https://github.com/vrm-c/vrm-specification/blob/master/specification/VRMC_vrm_animation-1.0/how_to_transform_human_pose.md)
 
-                    // bind pose rotation always zero
-                    assert(DirectX::XMVector4EqualInt(DirectX::XMVectorTrueInt(), DirectX::XMVectorLess(DirectX::XMVectorAbs(DirectX::XMVectorSubtract(DirectX::XMLoadFloat4(&animation_skeleton_bind_pose_rotation_local_space), DirectX::XMQuaternionIdentity())), DirectX::XMVectorReplicate(INTERNAL_ROTATION_EPSILON))));
-                    animation_skeleton_animation_pose_rotation_local_space = animation_skeleton_delta_transform->m_rotation;
+                    // bind pose rotation always zero (only for MMD model)
+                    // assert(DirectX::XMVector4EqualInt(DirectX::XMVectorTrueInt(), DirectX::XMVectorLess(DirectX::XMVectorAbs(DirectX::XMVectorSubtract(DirectX::XMLoadFloat4(&animation_skeleton_bind_pose_rotation_local_space), DirectX::XMQuaternionIdentity())), DirectX::XMVectorReplicate(INTERNAL_ROTATION_EPSILON))));
+
+                    DirectX::XMStoreFloat4(&animation_skeleton_animation_pose_rotation_local_space, DirectX::XMQuaternionMultiply(DirectX::XMLoadFloat4(&animation_skeleton_bind_pose_rotation_local_space), DirectX::XMLoadFloat4(&animation_skeleton_delta_transform->m_rotation)));
 
                     DirectX::XMStoreFloat3(&animation_skeleton_animation_pose_translation_local_space, DirectX::XMVectorAdd(DirectX::XMLoadFloat3(&animation_skeleton_bind_pose_translation_local_space), DirectX::XMLoadFloat3(&animation_skeleton_delta_transform->m_translation)));
                 }
