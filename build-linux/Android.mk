@@ -37,11 +37,56 @@ include $(PREBUILT_SHARED_LIBRARY)
 
 include $(CLEAR_VARS)
 
+LOCAL_MODULE := BRX-Motion-MediaPipe-Model-Asset
+
+LOCAL_SRC_FILES := \
+    $(LOCAL_PATH)/../models/face_landmarker_task.cpp \
+    $(LOCAL_PATH)/../models/pose_landmarker_task.cpp
+
+LOCAL_CFLAGS :=
+
+ifeq (armeabi-v7a,$(TARGET_ARCH_ABI))
+LOCAL_ARM_MODE := arm
+LOCAL_ARM_NEON := true
+else ifeq (arm64-v8a,$(TARGET_ARCH_ABI))
+LOCAL_CFLAGS +=
+else ifeq (x86,$(TARGET_ARCH_ABI))
+LOCAL_CFLAGS += -mf16c
+LOCAL_CFLAGS += -mfma
+LOCAL_CFLAGS += -mavx2
+else ifeq (x86_64,$(TARGET_ARCH_ABI))
+LOCAL_CFLAGS += -mf16c
+LOCAL_CFLAGS += -mfma
+LOCAL_CFLAGS += -mavx2
+else
+LOCAL_CFLAGS +=
+endif
+
+LOCAL_CFLAGS += -Wall
+LOCAL_CFLAGS += -Werror=return-type
+
+LOCAL_C_INCLUDES :=
+
+LOCAL_CPPFLAGS := 
+LOCAL_CPPFLAGS += -std=c++17
+
+LOCAL_LDFLAGS :=
+LOCAL_LDFLAGS += -Wl,--enable-new-dtags
+LOCAL_LDFLAGS += -Wl,-rpath,\$$ORIGIN
+LOCAL_LDFLAGS += -Wl,--version-script,$(LOCAL_PATH)/BRX-Motion-MediaPipe-Model-Asset.map
+
+LOCAL_STATIC_LIBRARIES :=
+
+LOCAL_SHARED_LIBRARIES :=
+
+include $(BUILD_SHARED_LIBRARY)
+
+
+include $(CLEAR_VARS)
+
 LOCAL_MODULE := BRX-Motion
 
 LOCAL_SRC_FILES := \
-	$(LOCAL_PATH)/../models/face_landmarker_task.cpp \
-	$(LOCAL_PATH)/../models/pose_landmarker_task.cpp \
 	$(LOCAL_PATH)/../source/brx_animation_ik_ccd.cpp \
 	$(LOCAL_PATH)/../source/brx_animation_ik_one_joint.cpp \
 	$(LOCAL_PATH)/../source/brx_animation_ik_two_joints.cpp \
@@ -99,6 +144,7 @@ LOCAL_STATIC_LIBRARIES :=
 LOCAL_STATIC_LIBRARIES += OpenCV
 
 LOCAL_SHARED_LIBRARIES :=
+LOCAL_STATIC_LIBRARIES += BRX-Motion-MediaPipe-Model-Asset
 LOCAL_SHARED_LIBRARIES += mediapipe
 LOCAL_SHARED_LIBRARIES += OpenCL
 LOCAL_SHARED_LIBRARIES += BRX-Physics-BT

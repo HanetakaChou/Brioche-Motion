@@ -28,11 +28,8 @@
 #include <algorithm>
 #include <new>
 
-extern uint8_t const *const face_landmarker_task_base;
-extern size_t const face_landmarker_task_size;
-
-extern uint8_t const *const pose_landmarker_task_base;
-extern size_t const pose_landmarker_task_size;
+#include "../models/face_landmarker_task.h"
+#include "../models/pose_landmarker_task.h"
 
 static constexpr uint32_t const INTERNAL_MEIDA_PIPE_MAX_FACE_COUNT = 2U;
 static constexpr uint32_t const INTERNAL_MEIDA_PIPE_MAX_POSE_COUNT = 5U;
@@ -361,8 +358,8 @@ bool brx_motion_media_pipe_video_detector::init(uint32_t face_count, uint32_t po
     if (this->m_face_count > 0U)
     {
         FaceLandmarkerOptions options;
-        options.base_options.model_asset_buffer = reinterpret_cast<char const *>(face_landmarker_task_base);
-        options.base_options.model_asset_buffer_count = static_cast<unsigned int>(face_landmarker_task_size);
+        options.base_options.model_asset_buffer = reinterpret_cast<char const *>(brx_motion_mediapipe_model_asset_get_face_landmarker_task_base());
+        options.base_options.model_asset_buffer_count = static_cast<unsigned int>(brx_motion_mediapipe_model_asset_get_face_landmarker_task_size());
         options.base_options.model_asset_path = NULL;
         options.running_mode = VIDEO;
         options.num_faces = static_cast<int>(this->m_face_count);
@@ -405,8 +402,8 @@ bool brx_motion_media_pipe_video_detector::init(uint32_t face_count, uint32_t po
     if (this->m_pose_count > 0U)
     {
         PoseLandmarkerOptions options;
-        options.base_options.model_asset_buffer = reinterpret_cast<char const *>(pose_landmarker_task_base);
-        options.base_options.model_asset_buffer_count = static_cast<unsigned int>(pose_landmarker_task_size);
+        options.base_options.model_asset_buffer = reinterpret_cast<char const *>(brx_motion_mediapipe_model_asset_get_pose_landmarker_task_base());
+        options.base_options.model_asset_buffer_count = static_cast<unsigned int>(brx_motion_mediapipe_model_asset_get_pose_landmarker_task_size());
         options.base_options.model_asset_path = NULL;
         options.running_mode = VIDEO;
         options.num_poses = static_cast<int>(this->m_pose_count);

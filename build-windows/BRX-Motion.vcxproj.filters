@@ -10,9 +10,6 @@
     <Filter Include="include">
       <UniqueIdentifier>{b2210c2c-382b-42ee-8356-99da38260975}</UniqueIdentifier>
     </Filter>
-    <Filter Include="models">
-      <UniqueIdentifier>{1f473083-ea11-4a0c-98b0-ff5fac75b172}</UniqueIdentifier>
-    </Filter>
     <Filter Include="thirdparty">
       <UniqueIdentifier>{94fbe556-dc77-424e-9f5b-1634329cf4be}</UniqueIdentifier>
     </Filter>
@@ -35,12 +32,6 @@
     </ClCompile>
     <ClCompile Include="..\source\brx_motion_opencv_video_capture.cpp">
       <Filter>source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\models\face_landmarker_task.cpp">
-      <Filter>models</Filter>
-    </ClCompile>
-    <ClCompile Include="..\models\pose_landmarker_task.cpp">
-      <Filter>models</Filter>
     </ClCompile>
     <ClCompile Include="..\source\brx_motion_media_pipe_video_detector.cpp">
       <Filter>source</Filter>

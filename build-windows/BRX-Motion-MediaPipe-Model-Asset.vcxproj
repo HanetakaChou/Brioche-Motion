@@ -19,68 +19,20 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\source\brx_animation_ik_ccd.cpp" />
-    <ClCompile Include="..\source\brx_animation_ik_one_joint.cpp" />
-    <ClCompile Include="..\source\brx_animation_ik_two_joints.cpp" />
-    <ClCompile Include="..\source\brx_motion_animation.cpp" />
-    <ClCompile Include="..\source\brx_motion_media_pipe_video_detector.cpp" />
-    <ClCompile Include="..\source\brx_motion_opencv_video_capture.cpp" />
-    <ClCompile Include="..\source\internal_tflite.cpp" />
+    <ClCompile Include="..\models\face_landmarker_task.cpp" />
+    <ClCompile Include="..\models\pose_landmarker_task.cpp" />
     <ClCompile Include="dllmain.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\source\brx_animation_ik_internal.inl" />
-    <CopyFileToFolders Include="..\thirdparty\mediapipe\build-windows\bin\Win32\mediapipe.dll">
-      <FileType>Document</FileType>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="..\thirdparty\mediapipe\build-windows\bin\x64\mediapipe.dll">
-      <FileType>Document</FileType>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </CopyFileToFolders>
-    <None Include="BRX-Motion.def" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\include\brx_motion.h" />
-    <ClInclude Include="..\source\brx_animation_ik_ccd.h" />
-    <ClInclude Include="..\source\brx_animation_ik_one_joint.h" />
-    <ClInclude Include="..\source\brx_animation_ik_two_joints.h" />
-    <ClInclude Include="..\source\brx_motion_animation.h" />
-    <ClInclude Include="..\source\brx_motion_media_pipe_video_detector.h" />
-    <ClInclude Include="..\source\brx_motion_opencv_video_capture.h" />
-    <ClInclude Include="..\source\internal_tflite.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\Brioche-Physics\build-windows\BRX-Physics-BT.vcxproj">
-      <Project>{787679bf-454c-4ac9-967b-37a4b5128e92}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\..\Brioche-Window-System-Integration\build-windows\BRX-WSI.vcxproj">
-      <Project>{0d2def0c-0883-44cb-a9c2-38063ed78802}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\..\libiconv\build-windows\libiconv.vcxproj">
-      <Project>{b0b625d2-ae06-468f-81ca-848a0f9b617c}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\..\McRT-Malloc\build-windows\McRT-Malloc.vcxproj">
-      <Project>{998afb75-f449-402d-a300-30da702b3ddf}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\..\OpenCV\build-windows\opencv.vcxproj">
-      <Project>{20af1bfb-9677-455b-bdf7-7cb9f1a96cf0}</Project>
-    </ProjectReference>
-    <ProjectReference Include="BRX-Motion-MediaPipe-Model-Asset.vcxproj">
-      <Project>{cc6296bf-44c7-49bc-a871-4acc3da9ca0f}</Project>
+    <ProjectReference Include="BRX-Motion-MediaPipe-Model.vcxproj">
+      <Project>{1b3ad1f1-bbb2-4473-ad0a-f9c1487cd385}</Project>
     </ProjectReference>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{720ba09e-4cbc-4e86-85d9-2766a80fe516}</ProjectGuid>
-    <RootNamespace>BRX-Motion</RootNamespace>
+    <ProjectGuid>{CC6296BF-44C7-49BC-A871-4ACC3DA9CA0F}</ProjectGuid>
+    <RootNamespace>BRX-Motion-MediaPipe-Model-Asset</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -133,22 +85,22 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <TargetName>BRX-Motion</TargetName>
+    <TargetName>BRX-Motion-MediaPipe-Model-Asset</TargetName>
     <OutDir>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\obj\$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <TargetName>BRX-Motion</TargetName>
+    <TargetName>BRX-Motion-MediaPipe-Model-Asset</TargetName>
     <OutDir>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\obj\$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <TargetName>BRX-Motion</TargetName>
+    <TargetName>BRX-Motion-MediaPipe-Model-Asset</TargetName>
     <OutDir>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\obj\$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <TargetName>BRX-Motion</TargetName>
+    <TargetName>BRX-Motion-MediaPipe-Model-Asset</TargetName>
     <OutDir>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\obj\$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
@@ -156,21 +108,18 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>MP_EXPORT=__declspec(dllimport);_WIN32_WINNT=0x0601;_WINDOWS;_USRDLL;_DEBUG;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32_WINNT=0x0601;_WINDOWS;_USRDLL;_DEBUG;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalIncludeDirectories>$(ProjectDir)\..\..\OpenCV\modules\core\include;$(ProjectDir)\..\..\OpenCV\modules\imgproc\include;$(ProjectDir)\..\..\OpenCV\modules\imgcodecs\include;$(ProjectDir)\..\..\OpenCV\modules\videoio\include;$(ProjectDir)\..\thirdparty\mediapipe\include;$(ProjectDir)\..\thirdparty\OpenCL-Headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>-Werror=return-type %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <AdditionalOptions>-Werror=return-type %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <ModuleDefinitionFile>BRX-Motion.def</ModuleDefinitionFile>
-      <AdditionalLibraryDirectories>$(ProjectDir)\..\thirdparty\mediapipe\build-windows\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>mediapipe.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ModuleDefinitionFile>BRX-Motion-MediaPipe-Model-Asset.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -179,13 +128,12 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>MP_EXPORT=__declspec(dllimport);_WIN32_WINNT=0x0601;_WINDOWS;_USRDLL;NDEBUG;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32_WINNT=0x0601;_WINDOWS;_USRDLL;NDEBUG;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalIncludeDirectories>$(ProjectDir)\..\..\OpenCV\modules\core\include;$(ProjectDir)\..\..\OpenCV\modules\imgproc\include;$(ProjectDir)\..\..\OpenCV\modules\imgcodecs\include;$(ProjectDir)\..\..\OpenCV\modules\videoio\include;$(ProjectDir)\..\thirdparty\mediapipe\include;$(ProjectDir)\..\thirdparty\OpenCL-Headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>-Werror=return-type %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <AdditionalOptions>-Werror=return-type %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -193,30 +141,25 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <ModuleDefinitionFile>BRX-Motion.def</ModuleDefinitionFile>
-      <AdditionalLibraryDirectories>$(ProjectDir)\..\thirdparty\mediapipe\build-windows\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>mediapipe.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ModuleDefinitionFile>BRX-Motion-MediaPipe-Model-Asset.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>MP_EXPORT=__declspec(dllimport);_WIN32_WINNT=0x0601;_WINDOWS;_USRDLL;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32_WINNT=0x0601;_WINDOWS;_USRDLL;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalIncludeDirectories>$(ProjectDir)\..\..\OpenCV\modules\core\include;$(ProjectDir)\..\..\OpenCV\modules\imgproc\include;$(ProjectDir)\..\..\OpenCV\modules\imgcodecs\include;$(ProjectDir)\..\..\OpenCV\modules\videoio\include;$(ProjectDir)\..\thirdparty\mediapipe\include;$(ProjectDir)\..\thirdparty\OpenCL-Headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>-Werror=return-type %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <AdditionalOptions>-Werror=return-type %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <ModuleDefinitionFile>BRX-Motion.def</ModuleDefinitionFile>
-      <AdditionalLibraryDirectories>$(ProjectDir)\..\thirdparty\mediapipe\build-windows\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>mediapipe.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ModuleDefinitionFile>BRX-Motion-MediaPipe-Model-Asset.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -225,13 +168,12 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>MP_EXPORT=__declspec(dllimport);_WIN32_WINNT=0x0601;_WINDOWS;_USRDLL;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32_WINNT=0x0601;_WINDOWS;_USRDLL;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalIncludeDirectories>$(ProjectDir)\..\..\OpenCV\modules\core\include;$(ProjectDir)\..\..\OpenCV\modules\imgproc\include;$(ProjectDir)\..\..\OpenCV\modules\imgcodecs\include;$(ProjectDir)\..\..\OpenCV\modules\videoio\include;$(ProjectDir)\..\thirdparty\mediapipe\include;$(ProjectDir)\..\thirdparty\OpenCL-Headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>-Werror=return-type %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <AdditionalOptions>-Werror=return-type %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -239,9 +181,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <ModuleDefinitionFile>BRX-Motion.def</ModuleDefinitionFile>
-      <AdditionalLibraryDirectories>$(ProjectDir)\..\thirdparty\mediapipe\build-windows\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>mediapipe.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ModuleDefinitionFile>BRX-Motion-MediaPipe-Model-Asset.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
