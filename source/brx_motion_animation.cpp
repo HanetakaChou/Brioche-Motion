@@ -25,24 +25,6 @@
 #include <new>
 
 static brx_physics_context *g_physics_context = NULL;
-#ifndef NDEBUG
-static int32_t g_physics_context_ref_count = 0;
-#endif
-class _internal_physics_context_uninit
-{
-public:
-    inline ~_internal_physics_context_uninit()
-    {
-        assert(0 == g_physics_context_ref_count);
-
-        if (NULL != g_physics_context)
-        {
-            brx_physics_destroy_context(g_physics_context);
-            g_physics_context = NULL;
-        }
-    }
-};
-static _internal_physics_context_uninit _internal_physics_context_uninit_instance;
 
 static inline BRX_PHYSICS_RIGID_BODY_SHAPE_TYPE wrap(BRX_MOTION_PHYSICS_RIGID_BODY_SHAPE_TYPE shape_type)
 {
@@ -1045,19 +1027,6 @@ inline void brx_motion_animation_skeleton_instance::init(brx_motion_animation_sk
 
     brx_animation_physics_constraint const *const ragdoll_skeleton_constraints = skeleton->get_ragdoll_skeleton_constraints();
 
-    {
-        if (NULL == g_physics_context)
-        {
-            assert(0 == g_physics_context_ref_count);
-
-            g_physics_context = brx_physics_create_context();
-        }
-
-        assert(g_physics_context_ref_count >= 0);
-#ifndef NDEBUG
-        ++g_physics_context_ref_count;
-#endif
-    }
     assert(NULL != g_physics_context);
 
     assert(NULL == this->m_physics_world);
@@ -1136,14 +1105,6 @@ inline void brx_motion_animation_skeleton_instance::uninit()
     assert(NULL != this->m_physics_world);
     brx_physics_destroy_world(g_physics_context, this->m_physics_world);
     this->m_physics_world = NULL;
-
-    assert(NULL != g_physics_context);
-    {
-        assert(g_physics_context_ref_count > 0U);
-#ifndef NDEBUG
-        --g_physics_context_ref_count;
-#endif
-    }
 
     assert(!this->m_skin_transforms.empty());
     this->m_skin_transforms.clear();
@@ -2182,3 +2143,22 @@ static inline DirectX::XMFLOAT4X4 internal_calculate_transform_model_space(uint3
 
     return model_space;
 }
+
+class internal_physics_context_scope
+{
+public:
+    inline internal_physics_context_scope()
+    {
+        assert(NULL == g_physics_context);
+        g_physics_context = brx_physics_create_context();
+    }
+
+    inline ~internal_physics_context_scope()
+    {
+        assert(NULL != g_physics_context);
+        brx_physics_destroy_context(g_physics_context);
+        g_physics_context = NULL;
+    }
+};
+
+static internal_physics_context_scope internal_physics_context_scope_instance;

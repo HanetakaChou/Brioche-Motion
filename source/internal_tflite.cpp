@@ -21,7 +21,13 @@
 #include <cassert>
 
 #if defined(__GNUC__)
+#if defined(__linux__)
 #include <dlfcn.h>
+#elif defined(__MACH__)
+#include <dlfcn.h>
+#else
+#error Unknown Platform
+#endif
 #elif defined(_MSC_VER)
 #define NOMINMAX 1
 #define WIN32_LEAN_AND_MEAN 1
@@ -42,9 +48,15 @@ extern bool internal_tflite_check_gpu_support()
     // LoadOpenCLFunctionExtensions
 
 #if defined(__GNUC__)
+#if defined(__linux__)
     constexpr char const *const dynamic_library_name = "libOpenCL.so";
-
     void *dynamic_library = dlopen(dynamic_library_name, RTLD_NOW | RTLD_LOCAL);
+#elif defined(__MACH__)
+    constexpr char const *const dynamic_library_name = "/System/Library/Frameworks/OpenCL.framework/OpenCL";
+    void *dynamic_library = dlopen(dynamic_library_name, RTLD_NOW | RTLD_LOCAL);
+#else
+#error Unknown Platform
+#endif
 #elif defined(_MSC_VER)
     constexpr wchar_t const *const dynamic_library_name = L"OpenCL.dll";
 
@@ -173,7 +185,15 @@ extern bool internal_tflite_check_gpu_support()
         {
             if (
 #if defined(__GNUC__)
+#if defined(__linux__)
                 NULL == dlsym(dynamic_library, function_names[function_index])
+
+#elif defined(__MACH__)
+                NULL == dlsym(dynamic_library, function_names[function_index])
+
+#else
+#error Unknown Platform
+#endif
 #elif defined(_MSC_VER)
                 NULL == GetProcAddress(dynamic_library, function_names[function_index])
 #else
@@ -187,7 +207,15 @@ extern bool internal_tflite_check_gpu_support()
 
         if (
 #if defined(__GNUC__)
+#if defined(__linux__)
             NULL == (pfn_get_platform_ids = reinterpret_cast<decltype(clGetPlatformIDs) *>(dlsym(dynamic_library, "clGetPlatformIDs")))
+
+#elif defined(__MACH__)
+            NULL == (pfn_get_platform_ids = reinterpret_cast<decltype(clGetPlatformIDs) *>(dlsym(dynamic_library, "clGetPlatformIDs")))
+
+#else
+#error Unknown Platform
+#endif
 #elif defined(_MSC_VER)
             NULL == (pfn_get_platform_ids = reinterpret_cast<decltype(clGetPlatformIDs) *>(GetProcAddress(dynamic_library, "clGetPlatformIDs")))
 #else
@@ -200,7 +228,15 @@ extern bool internal_tflite_check_gpu_support()
 
         if (
 #if defined(__GNUC__)
+#if defined(__linux__)
             NULL == (pfn_get_device_ids = reinterpret_cast<decltype(clGetDeviceIDs) *>(dlsym(dynamic_library, "clGetDeviceIDs")))
+
+#elif defined(__MACH__)
+            NULL == (pfn_get_device_ids = reinterpret_cast<decltype(clGetDeviceIDs) *>(dlsym(dynamic_library, "clGetDeviceIDs")))
+
+#else
+#error Unknown Platform
+#endif
 #elif defined(_MSC_VER)
             NULL == (pfn_get_device_ids = reinterpret_cast<decltype(clGetDeviceIDs) *>(GetProcAddress(dynamic_library, "clGetDeviceIDs")))
 #else
@@ -213,7 +249,15 @@ extern bool internal_tflite_check_gpu_support()
 
         if (
 #if defined(__GNUC__)
+#if defined(__linux__)
             NULL == (pfn_get_device_info = reinterpret_cast<decltype(clGetDeviceInfo) *>(dlsym(dynamic_library, "clGetDeviceInfo")))
+
+#elif defined(__MACH__)
+            NULL == (pfn_get_device_info = reinterpret_cast<decltype(clGetDeviceInfo) *>(dlsym(dynamic_library, "clGetDeviceInfo")))
+
+#else
+#error Unknown Platform
+#endif
 #elif defined(_MSC_VER)
             NULL == (pfn_get_device_info = reinterpret_cast<decltype(clGetDeviceInfo) *>(GetProcAddress(dynamic_library, "clGetDeviceInfo")))
 #else
@@ -226,7 +270,13 @@ extern bool internal_tflite_check_gpu_support()
 
         if (
 #if defined(__GNUC__)
+#if defined(__linux__)
             NULL == (pfn_create_context = reinterpret_cast<decltype(clCreateContext) *>(dlsym(dynamic_library, "clCreateContext")))
+#elif defined(__MACH__)
+            NULL == (pfn_create_context = reinterpret_cast<decltype(clCreateContext) *>(dlsym(dynamic_library, "clCreateContext")))
+#else
+#error Unknown Platform
+#endif
 #elif defined(_MSC_VER)
             NULL == (pfn_create_context = reinterpret_cast<decltype(clCreateContext) *>(GetProcAddress(dynamic_library, "clCreateContext")))
 #else
@@ -239,7 +289,13 @@ extern bool internal_tflite_check_gpu_support()
 
         if (
 #if defined(__GNUC__)
+#if defined(__linux__)
             NULL == (pfn_release_context = reinterpret_cast<decltype(clReleaseContext) *>(dlsym(dynamic_library, "clReleaseContext")))
+#elif defined(__MACH__)
+            NULL == (pfn_release_context = reinterpret_cast<decltype(clReleaseContext) *>(dlsym(dynamic_library, "clReleaseContext")))
+#else
+#error Unknown Platform
+#endif
 #elif defined(_MSC_VER)
             NULL == (pfn_release_context = reinterpret_cast<decltype(clReleaseContext) *>(GetProcAddress(dynamic_library, "clReleaseContext")))
 #else
@@ -296,7 +352,34 @@ extern bool internal_tflite_check_gpu_support()
                             cl_int status_get_device_host_unified_memory = pfn_get_device_info(device_id, CL_DEVICE_HOST_UNIFIED_MEMORY, sizeof(host_unified_memory), &host_unified_memory, nullptr);
                             if (CL_SUCCESS == status_get_device_host_unified_memory)
                             {
-                                if (CL_FALSE == host_unified_memory)
+                                if (
+#if defined(__GNUC__)
+                                // GCC or CLANG
+#if defined(__linux__)
+                                    // TODO
+                                    // On Linux
+                                    // Perhaps due to the significant readback from GPU written memory, the performance is better when we switch to Intel GPU
+                                    // We may leave the NVIDIA GPU for rendering task
+                                    !(CL_FALSE == host_unified_memory)
+#elif defined(__MACH__)
+                                    // TODO
+                                    // On macOS
+                                    // There is bug for AMD GPU
+                                    // We have to use the Intel GPU
+                                    !(CL_FALSE == host_unified_memory)
+#else
+#error Unknown Platform
+#endif
+#elif defined(_MSC_VER)
+                                    // TODO
+                                    // MSVC or CLANG-CL
+                                    // Perhaps due to the significant readback from GPU written memory, the performance is better when we switch to Intel GPU
+                                    // We may leave the NVIDIA GPU for rendering task
+                                    !(CL_FALSE == host_unified_memory)
+#else
+#error Unknown Compiler
+#endif
+                                )
                                 {
                                     selected_platform_id = platform_id;
                                     selected_device_id = device_id;
@@ -365,14 +448,15 @@ extern void internal_tflite_set_env_force_gpu(bool force_gpu)
     if (force_gpu)
     {
 #if defined(__GNUC__)
-
 #if defined(__linux__)
+        int status_set_env = setenv("TFLITE_FORCE_GPU", "1", 1);
+        assert(0 == status_set_env);
+#elif defined(__MACH__)
         int status_set_env = setenv("TFLITE_FORCE_GPU", "1", 1);
         assert(0 == status_set_env);
 #else
 #error Unknown Platform
 #endif
-
 #elif defined(_MSC_VER)
         long status_set_env = SetEnvironmentVariableW(L"TFLITE_FORCE_GPU", L"1");
         assert(0 != status_set_env);
@@ -383,14 +467,15 @@ extern void internal_tflite_set_env_force_gpu(bool force_gpu)
     else
     {
 #if defined(__GNUC__)
-
 #if defined(__linux__)
+        int status_set_env = setenv("TFLITE_FORCE_GPU", "0", 1);
+        assert(0 == status_set_env);
+#elif defined(__MACH__)
         int status_set_env = setenv("TFLITE_FORCE_GPU", "0", 1);
         assert(0 == status_set_env);
 #else
 #error Unknown Platform
 #endif
-
 #elif defined(_MSC_VER)
         long status_set_env = SetEnvironmentVariableW(L"TFLITE_FORCE_GPU", L"0");
         assert(0 != status_set_env);
@@ -403,14 +488,15 @@ extern void internal_tflite_set_env_force_gpu(bool force_gpu)
 extern void internal_tflite_unset_env_force_gpu()
 {
 #if defined(__GNUC__)
-
 #if defined(__linux__)
+    int status_unset_env = unsetenv("TFLITE_FORCE_GPU");
+    assert(0 == status_unset_env);
+#elif defined(__MACH__)
     int status_unset_env = unsetenv("TFLITE_FORCE_GPU");
     assert(0 == status_unset_env);
 #else
 #error Unknown Platform
 #endif
-
 #elif defined(_MSC_VER)
     long status_unset_env = SetEnvironmentVariableW(L"TFLITE_FORCE_GPU", NULL);
     assert(0 != status_unset_env);
