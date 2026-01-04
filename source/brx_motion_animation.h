@@ -22,6 +22,7 @@
 #include "../../McRT-Malloc/include/mcrt_vector.h"
 #include "../../McRT-Malloc/include/mcrt_unordered_map.h"
 #include "../../Brioche-Physics/include/brx_physics.h"
+#include "brx_motion_video_detector.h"
 #if defined(__GNUC__)
 // GCC or CLANG
 #pragma GCC diagnostic push
@@ -235,10 +236,10 @@ class brx_motion_animation_skeleton_instance final : public brx_motion_skeleton_
 	brx_motion_video_detector const *m_input_video_detector;
 	uint32_t m_input_face_index;
 	uint32_t m_input_pose_index;
-	DirectX::XMFLOAT4 m_video_detector_face_skeleton_joint_rotations_local_space[3];
-	bool m_video_detector_pose_skeleton_joint_translations_model_space_valid[18];
-	DirectX::XMFLOAT3 m_video_detector_pose_skeleton_joint_translations_model_space[18];
-	DirectX::XMFLOAT4 m_video_detector_pose_skeleton_joint_rotations_local_space[12];
+	DirectX::XMFLOAT4 m_video_detector_face_skeleton_joint_rotations_local_space[INTERNAL_VIDEO_DETECTOR_FACE_SKELETON_JOINT_NAME_COUNT];
+	bool m_video_detector_pose_skeleton_joint_translations_model_space_valid[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT];
+	DirectX::XMFLOAT3 m_video_detector_pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT];
+	DirectX::XMFLOAT4 m_video_detector_pose_skeleton_joint_rotations_local_space[13];
 
 	brx_motion_animation_animation_instance const *m_input_animation_instance;
 

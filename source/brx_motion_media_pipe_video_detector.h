@@ -22,6 +22,7 @@
 #include "../../McRT-Malloc/include/mcrt_string.h"
 #include "../../McRT-Malloc/include/mcrt_unordered_map.h"
 #include "../../McRT-Malloc/include/mcrt_vector.h"
+#include "brx_motion_video_detector.h"
 #if defined(__GNUC__)
 // GCC or CLANG
 #pragma GCC diagnostic push
@@ -44,9 +45,9 @@ class brx_motion_media_pipe_video_detector final : public brx_motion_video_detec
 	void *m_face_landmarker;
 	void *m_pose_landmarker;
 	mcrt_vector<std::array<float, BRX_MOTION_MORPH_TARGET_NAME_MMD_COUNT>> m_faces_morph_target_weights;
-	mcrt_vector<std::array<DirectX::XMFLOAT4, 3>> m_faces_skeleton_joint_rotations;
-	mcrt_vector<std::array<bool, 17>> m_poses_skeleton_joint_translations_model_space_valid;
-	mcrt_vector<std::array<DirectX::XMFLOAT3, 17>> m_poses_skeleton_joint_translations_model_space;
+	mcrt_vector<std::array<DirectX::XMFLOAT4, INTERNAL_VIDEO_DETECTOR_FACE_SKELETON_JOINT_NAME_COUNT>> m_faces_skeleton_joint_rotations;
+	mcrt_vector<std::array<bool, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT>> m_poses_skeleton_joint_translations_model_space_valid;
+	mcrt_vector<std::array<DirectX::XMFLOAT3, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT>> m_poses_skeleton_joint_translations_model_space;
 	int64_t m_timestamp_ms;
 	bool m_enable_debug_renderer;
 	mcrt_string m_debug_renderer_window_name;

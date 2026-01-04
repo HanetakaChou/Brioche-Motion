@@ -1,0 +1,733 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		8494194C2F13A9C60022634B /* face_landmarker_task.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8494194A2F13A9C60022634B /* face_landmarker_task.cpp */; };
+		8494194D2F13A9C60022634B /* pose_landmarker_task.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8494194B2F13A9C60022634B /* pose_landmarker_task.cpp */; };
+		849419552F13AB820022634B /* brx_animation_ik_two_joints.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 849419502F13AB820022634B /* brx_animation_ik_two_joints.cpp */; };
+		849419562F13AB820022634B /* brx_motion_media_pipe_video_detector.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 849419522F13AB820022634B /* brx_motion_media_pipe_video_detector.cpp */; };
+		849419572F13AB820022634B /* internal_tflite.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 849419542F13AB820022634B /* internal_tflite.cpp */; };
+		849419582F13AB820022634B /* brx_animation_ik_ccd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8494194E2F13AB820022634B /* brx_animation_ik_ccd.cpp */; };
+		849419592F13AB820022634B /* brx_motion_animation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 849419512F13AB820022634B /* brx_motion_animation.cpp */; };
+		8494195A2F13AB820022634B /* brx_motion_opencv_video_capture.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 849419532F13AB820022634B /* brx_motion_opencv_video_capture.cpp */; };
+		8494195B2F13AB820022634B /* brx_animation_ik_one_joint.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8494194F2F13AB820022634B /* brx_animation_ik_one_joint.cpp */; };
+		8494196C2F13AE6F0022634B /* libOpenCV.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8494196B2F13AE6F0022634B /* libOpenCV.a */; };
+		849419702F13AE920022634B /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8494196F2F13AE920022634B /* AVFoundation.framework */; };
+		849419722F13AE980022634B /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 849419712F13AE980022634B /* CoreVideo.framework */; };
+		849419762F13AEA30022634B /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 849419752F13AEA30022634B /* CoreMedia.framework */; };
+		849419782F13AEB80022634B /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 849419772F13AEB80022634B /* AppKit.framework */; };
+		8494197D2F13AF280022634B /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 849419732F13AE9E0022634B /* CoreGraphics.framework */; };
+		8494197F2F13AF300022634B /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8494197E2F13AF300022634B /* CoreFoundation.framework */; };
+		849419802F13AF410022634B /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8494196D2F13AE890022634B /* Foundation.framework */; };
+		849419822F13AF4A0022634B /* BRX-Physics-BT.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 849419812F13AF4A0022634B /* BRX-Physics-BT.framework */; };
+		849419892F13AF5E0022634B /* McRT-Malloc.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 849419852F13AF520022634B /* McRT-Malloc.framework */; };
+		8494198C2F13AF730022634B /* BRX-Motion-MediaPipe-Model-Asset.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 849419492F13A9180022634B /* BRX-Motion-MediaPipe-Model-Asset.framework */; };
+		849419922F13AF870022634B /* BRX-WSI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 849419912F13AF870022634B /* BRX-WSI.framework */; };
+		849419962F13AFA30022634B /* mediapipe.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 849419952F13AFA30022634B /* mediapipe.xcframework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		8494198E2F13AF730022634B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 84E2D5AD2F12ED6600653972 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 849419412F13A9180022634B;
+			remoteInfo = "BRX-Motion-MediaPipe-Model-Asset";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		849417882F12F1C90022634B /* BRX-Motion.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = "BRX-Motion.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
+		849419492F13A9180022634B /* BRX-Motion-MediaPipe-Model-Asset.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = "BRX-Motion-MediaPipe-Model-Asset.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
+		8494194A2F13A9C60022634B /* face_landmarker_task.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = face_landmarker_task.cpp; path = ../models/face_landmarker_task.cpp; sourceTree = SOURCE_ROOT; };
+		8494194B2F13A9C60022634B /* pose_landmarker_task.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = pose_landmarker_task.cpp; path = ../models/pose_landmarker_task.cpp; sourceTree = SOURCE_ROOT; };
+		8494194E2F13AB820022634B /* brx_animation_ik_ccd.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = brx_animation_ik_ccd.cpp; path = ../source/brx_animation_ik_ccd.cpp; sourceTree = SOURCE_ROOT; };
+		8494194F2F13AB820022634B /* brx_animation_ik_one_joint.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = brx_animation_ik_one_joint.cpp; path = ../source/brx_animation_ik_one_joint.cpp; sourceTree = SOURCE_ROOT; };
+		849419502F13AB820022634B /* brx_animation_ik_two_joints.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = brx_animation_ik_two_joints.cpp; path = ../source/brx_animation_ik_two_joints.cpp; sourceTree = SOURCE_ROOT; };
+		849419512F13AB820022634B /* brx_motion_animation.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = brx_motion_animation.cpp; path = ../source/brx_motion_animation.cpp; sourceTree = SOURCE_ROOT; };
+		849419522F13AB820022634B /* brx_motion_media_pipe_video_detector.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = brx_motion_media_pipe_video_detector.cpp; path = ../source/brx_motion_media_pipe_video_detector.cpp; sourceTree = SOURCE_ROOT; };
+		849419532F13AB820022634B /* brx_motion_opencv_video_capture.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = brx_motion_opencv_video_capture.cpp; path = ../source/brx_motion_opencv_video_capture.cpp; sourceTree = SOURCE_ROOT; };
+		849419542F13AB820022634B /* internal_tflite.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = internal_tflite.cpp; path = ../source/internal_tflite.cpp; sourceTree = SOURCE_ROOT; };
+		8494196B2F13AE6F0022634B /* libOpenCV.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libOpenCV.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		8494196D2F13AE890022634B /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		8494196F2F13AE920022634B /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
+		849419712F13AE980022634B /* CoreVideo.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreVideo.framework; path = System/Library/Frameworks/CoreVideo.framework; sourceTree = SDKROOT; };
+		849419732F13AE9E0022634B /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
+		849419752F13AEA30022634B /* CoreMedia.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
+		849419772F13AEB80022634B /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
+		8494197E2F13AF300022634B /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
+		849419812F13AF4A0022634B /* BRX-Physics-BT.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = "BRX-Physics-BT.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
+		849419852F13AF520022634B /* McRT-Malloc.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = "McRT-Malloc.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
+		849419912F13AF870022634B /* BRX-WSI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = "BRX-WSI.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
+		849419952F13AFA30022634B /* mediapipe.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = mediapipe.xcframework; path = "../thirdparty/mediapipe/build-macOS/Frameworks/mediapipe.xcframework"; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		849417852F12F1C90022634B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				849419962F13AFA30022634B /* mediapipe.xcframework in Frameworks */,
+				8494197D2F13AF280022634B /* CoreGraphics.framework in Frameworks */,
+				849419922F13AF870022634B /* BRX-WSI.framework in Frameworks */,
+				849419782F13AEB80022634B /* AppKit.framework in Frameworks */,
+				8494198C2F13AF730022634B /* BRX-Motion-MediaPipe-Model-Asset.framework in Frameworks */,
+				849419822F13AF4A0022634B /* BRX-Physics-BT.framework in Frameworks */,
+				849419762F13AEA30022634B /* CoreMedia.framework in Frameworks */,
+				8494197F2F13AF300022634B /* CoreFoundation.framework in Frameworks */,
+				8494196C2F13AE6F0022634B /* libOpenCV.a in Frameworks */,
+				849419892F13AF5E0022634B /* McRT-Malloc.framework in Frameworks */,
+				849419702F13AE920022634B /* AVFoundation.framework in Frameworks */,
+				849419722F13AE980022634B /* CoreVideo.framework in Frameworks */,
+				849419802F13AF410022634B /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		849419442F13A9180022634B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		8494196A2F13AE6F0022634B /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				849419952F13AFA30022634B /* mediapipe.xcframework */,
+				849419912F13AF870022634B /* BRX-WSI.framework */,
+				849419852F13AF520022634B /* McRT-Malloc.framework */,
+				849419812F13AF4A0022634B /* BRX-Physics-BT.framework */,
+				8494197E2F13AF300022634B /* CoreFoundation.framework */,
+				849419772F13AEB80022634B /* AppKit.framework */,
+				849419752F13AEA30022634B /* CoreMedia.framework */,
+				849419732F13AE9E0022634B /* CoreGraphics.framework */,
+				849419712F13AE980022634B /* CoreVideo.framework */,
+				8494196F2F13AE920022634B /* AVFoundation.framework */,
+				8494196D2F13AE890022634B /* Foundation.framework */,
+				8494196B2F13AE6F0022634B /* libOpenCV.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		84E2D5AC2F12ED6600653972 = {
+			isa = PBXGroup;
+			children = (
+				8494194E2F13AB820022634B /* brx_animation_ik_ccd.cpp */,
+				8494194F2F13AB820022634B /* brx_animation_ik_one_joint.cpp */,
+				849419502F13AB820022634B /* brx_animation_ik_two_joints.cpp */,
+				849419512F13AB820022634B /* brx_motion_animation.cpp */,
+				849419522F13AB820022634B /* brx_motion_media_pipe_video_detector.cpp */,
+				849419532F13AB820022634B /* brx_motion_opencv_video_capture.cpp */,
+				849419542F13AB820022634B /* internal_tflite.cpp */,
+				8494194A2F13A9C60022634B /* face_landmarker_task.cpp */,
+				8494194B2F13A9C60022634B /* pose_landmarker_task.cpp */,
+				8494196A2F13AE6F0022634B /* Frameworks */,
+				84E2D5B72F12ED6600653972 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		84E2D5B72F12ED6600653972 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				849417882F12F1C90022634B /* BRX-Motion.framework */,
+				849419492F13A9180022634B /* BRX-Motion-MediaPipe-Model-Asset.framework */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		849417832F12F1C90022634B /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		849419422F13A9180022634B /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXLegacyTarget section */
+		849417F72F130EEC0022634B /* BRX-Motion-Build-MediaPipe-Model */ = {
+			isa = PBXLegacyTarget;
+			buildArgumentsString = "\"${PROJECT_DIR}/build-mediapipe-model.sh\"";
+			buildConfigurationList = 849417FA2F130EEC0022634B /* Build configuration list for PBXLegacyTarget "BRX-Motion-Build-MediaPipe-Model" */;
+			buildPhases = (
+			);
+			buildToolPath = bash;
+			buildWorkingDirectory = "";
+			dependencies = (
+			);
+			name = "BRX-Motion-Build-MediaPipe-Model";
+			packageProductDependencies = (
+			);
+			passBuildSettingsInEnvironment = 1;
+			productName = "BRX-Motion-Build-MediaPipe-Model";
+		};
+/* End PBXLegacyTarget section */
+
+/* Begin PBXNativeTarget section */
+		849417872F12F1C90022634B /* BRX-Motion */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8494178F2F12F1C90022634B /* Build configuration list for PBXNativeTarget "BRX-Motion" */;
+			buildPhases = (
+				849417832F12F1C90022634B /* Headers */,
+				849417842F12F1C90022634B /* Sources */,
+				849417852F12F1C90022634B /* Frameworks */,
+				849417862F12F1C90022634B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				8494198F2F13AF730022634B /* PBXTargetDependency */,
+			);
+			name = "BRX-Motion";
+			packageProductDependencies = (
+			);
+			productName = "BRX-Motion";
+			productReference = 849417882F12F1C90022634B /* BRX-Motion.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		849419412F13A9180022634B /* BRX-Motion-MediaPipe-Model-Asset */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 849419462F13A9180022634B /* Build configuration list for PBXNativeTarget "BRX-Motion-MediaPipe-Model-Asset" */;
+			buildPhases = (
+				849419422F13A9180022634B /* Headers */,
+				849419432F13A9180022634B /* Sources */,
+				849419442F13A9180022634B /* Frameworks */,
+				849419452F13A9180022634B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "BRX-Motion-MediaPipe-Model-Asset";
+			packageProductDependencies = (
+			);
+			productName = "BRX-Motion";
+			productReference = 849419492F13A9180022634B /* BRX-Motion-MediaPipe-Model-Asset.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		84E2D5AD2F12ED6600653972 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 2620;
+				TargetAttributes = {
+					849417872F12F1C90022634B = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					849417F72F130EEC0022634B = {
+						CreatedOnToolsVersion = 26.2;
+					};
+				};
+			};
+			buildConfigurationList = 84E2D5B02F12ED6600653972 /* Build configuration list for PBXProject "BRX-Motion" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 84E2D5AC2F12ED6600653972;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 84E2D5B72F12ED6600653972 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				849417F72F130EEC0022634B /* BRX-Motion-Build-MediaPipe-Model */,
+				849419412F13A9180022634B /* BRX-Motion-MediaPipe-Model-Asset */,
+				849417872F12F1C90022634B /* BRX-Motion */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		849417862F12F1C90022634B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		849419452F13A9180022634B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		849417842F12F1C90022634B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				849419552F13AB820022634B /* brx_animation_ik_two_joints.cpp in Sources */,
+				849419562F13AB820022634B /* brx_motion_media_pipe_video_detector.cpp in Sources */,
+				849419572F13AB820022634B /* internal_tflite.cpp in Sources */,
+				849419582F13AB820022634B /* brx_animation_ik_ccd.cpp in Sources */,
+				849419592F13AB820022634B /* brx_motion_animation.cpp in Sources */,
+				8494195A2F13AB820022634B /* brx_motion_opencv_video_capture.cpp in Sources */,
+				8494195B2F13AB820022634B /* brx_animation_ik_one_joint.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		849419432F13A9180022634B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8494194C2F13A9C60022634B /* face_landmarker_task.cpp in Sources */,
+				8494194D2F13A9C60022634B /* pose_landmarker_task.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		8494198F2F13AF730022634B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 849419412F13A9180022634B /* BRX-Motion-MediaPipe-Model-Asset */;
+			targetProxy = 8494198E2F13AF730022634B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		8494178C2F12F1C90022634B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = x86_64;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_ENABLE_MODULES = NO;
+				CLANG_ENABLE_OBJC_ARC = NO;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = NO;
+				CLANG_X86_VECTOR_INSTRUCTIONS = avx2;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				COPY_PHASE_STRIP = NO;
+				DEFINES_MODULE = NO;
+				DEPLOYMENT_POSTPROCESSING = NO;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				EXPORTED_SYMBOLS_FILE = "$(PROJECT_DIR)/BRX-Motion.exp";
+				GCC_C_LANGUAGE_STANDARD = c17;
+				GCC_ENABLE_CPP_EXCEPTIONS = NO;
+				GCC_ENABLE_CPP_RTTI = NO;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"PAL_STDCPP_COMPAT=1",
+					"MP_EXPORT=",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(PROJECT_DIR)/../../CoreRT/src/Native/inc/unix",
+					"$(PROJECT_DIR)/../../DirectXMath/Inc",
+					"$(PROJECT_DIR)/../../OpenCV/modules/core/include",
+					"$(PROJECT_DIR)/../../OpenCV/modules/imgproc/include",
+					"$(PROJECT_DIR)/../../OpenCV/modules/imgcodecs/include",
+					"$(PROJECT_DIR)/../../OpenCV/modules/videoio/include",
+					"$(PROJECT_DIR)/../thirdparty/mediapipe/include",
+					"$(PROJECT_DIR)/../thirdparty/OpenCL-Headers",
+				);
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				"OTHER_CFLAGS[arch=i386]" = (
+					"$(inherited)",
+					"-mf16c",
+					"-mfma",
+				);
+				"OTHER_CFLAGS[arch=x86_64]" = (
+					"$(inherited)",
+					"-mf16c",
+					"-mfma",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "IO.GitHub.BriochePuppet.BRX-Motion";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRIP_INSTALLED_PRODUCT = NO;
+			};
+			name = Debug;
+		};
+		8494178D2F12F1C90022634B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = x86_64;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_ENABLE_MODULES = NO;
+				CLANG_ENABLE_OBJC_ARC = NO;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = NO;
+				CLANG_X86_VECTOR_INSTRUCTIONS = avx2;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				COPY_PHASE_STRIP = YES;
+				DEFINES_MODULE = NO;
+				DEPLOYMENT_POSTPROCESSING = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				EXPORTED_SYMBOLS_FILE = "$(PROJECT_DIR)/BRX-Motion.exp";
+				GCC_C_LANGUAGE_STANDARD = c17;
+				GCC_ENABLE_CPP_EXCEPTIONS = NO;
+				GCC_ENABLE_CPP_RTTI = NO;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"PAL_STDCPP_COMPAT=1",
+					"MP_EXPORT=",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(PROJECT_DIR)/../../CoreRT/src/Native/inc/unix",
+					"$(PROJECT_DIR)/../../DirectXMath/Inc",
+					"$(PROJECT_DIR)/../../OpenCV/modules/core/include",
+					"$(PROJECT_DIR)/../../OpenCV/modules/imgproc/include",
+					"$(PROJECT_DIR)/../../OpenCV/modules/imgcodecs/include",
+					"$(PROJECT_DIR)/../../OpenCV/modules/videoio/include",
+					"$(PROJECT_DIR)/../thirdparty/mediapipe/include",
+					"$(PROJECT_DIR)/../thirdparty/OpenCL-Headers",
+				);
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				"OTHER_CFLAGS[arch=i386]" = (
+					"$(inherited)",
+					"-mf16c",
+					"-mfma",
+				);
+				"OTHER_CFLAGS[arch=x86_64]" = (
+					"$(inherited)",
+					"-mf16c",
+					"-mfma",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "IO.GitHub.BriochePuppet.BRX-Motion";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRIP_INSTALLED_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		849417F82F130EEC0022634B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CODE_SIGN_STYLE = Automatic;
+				DEBUGGING_SYMBOLS = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				GCC_C_LANGUAGE_STANDARD = c17;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				OTHER_CFLAGS = "";
+				OTHER_LDFLAGS = "";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		849417F92F130EEC0022634B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_C_LANGUAGE_STANDARD = c17;
+				OTHER_CFLAGS = "";
+				OTHER_LDFLAGS = "";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		849419472F13A9180022634B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = x86_64;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_ENABLE_MODULES = NO;
+				CLANG_ENABLE_OBJC_ARC = NO;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = NO;
+				CLANG_X86_VECTOR_INSTRUCTIONS = avx2;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				COPY_PHASE_STRIP = NO;
+				DEFINES_MODULE = NO;
+				DEPLOYMENT_POSTPROCESSING = NO;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				EXPORTED_SYMBOLS_FILE = "$(PROJECT_DIR)/BRX-Motion-MediaPipe-Model-Asset.exp";
+				GCC_C_LANGUAGE_STANDARD = c17;
+				GCC_ENABLE_CPP_EXCEPTIONS = NO;
+				GCC_ENABLE_CPP_RTTI = NO;
+				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				"OTHER_CFLAGS[arch=i386]" = (
+					"$(inherited)",
+					"-mf16c",
+					"-mfma",
+				);
+				"OTHER_CFLAGS[arch=x86_64]" = (
+					"$(inherited)",
+					"-mf16c",
+					"-mfma",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "IO.GitHub.BriochePuppet.BRX-Motion";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRIP_INSTALLED_PRODUCT = NO;
+			};
+			name = Debug;
+		};
+		849419482F13A9180022634B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = x86_64;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_ENABLE_MODULES = NO;
+				CLANG_ENABLE_OBJC_ARC = NO;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = NO;
+				CLANG_X86_VECTOR_INSTRUCTIONS = avx2;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				COPY_PHASE_STRIP = YES;
+				DEFINES_MODULE = NO;
+				DEPLOYMENT_POSTPROCESSING = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				EXPORTED_SYMBOLS_FILE = "$(PROJECT_DIR)/BRX-Motion-MediaPipe-Model-Asset.exp";
+				GCC_C_LANGUAGE_STANDARD = c17;
+				GCC_ENABLE_CPP_EXCEPTIONS = NO;
+				GCC_ENABLE_CPP_RTTI = NO;
+				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				"OTHER_CFLAGS[arch=i386]" = (
+					"$(inherited)",
+					"-mf16c",
+					"-mfma",
+				);
+				"OTHER_CFLAGS[arch=x86_64]" = (
+					"$(inherited)",
+					"-mf16c",
+					"-mfma",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "IO.GitHub.BriochePuppet.BRX-Motion";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRIP_INSTALLED_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		84E2D5BF2F12ED6600653972 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = x86_64;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_ENABLE_MODULES = NO;
+				CLANG_ENABLE_OBJC_ARC = NO;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = NO;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEFINES_MODULE = NO;
+				DEPLOYMENT_POSTPROCESSING = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = c17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_CPP_EXCEPTIONS = NO;
+				GCC_ENABLE_CPP_RTTI = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				STRIP_INSTALLED_PRODUCT = NO;
+			};
+			name = Debug;
+		};
+		84E2D5C02F12ED6600653972 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = x86_64;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_ENABLE_MODULES = NO;
+				CLANG_ENABLE_OBJC_ARC = NO;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = NO;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEFINES_MODULE = NO;
+				DEPLOYMENT_POSTPROCESSING = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = c17;
+				GCC_ENABLE_CPP_EXCEPTIONS = NO;
+				GCC_ENABLE_CPP_RTTI = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"NDEBUG=1",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				STRIP_INSTALLED_PRODUCT = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		8494178F2F12F1C90022634B /* Build configuration list for PBXNativeTarget "BRX-Motion" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8494178C2F12F1C90022634B /* Debug */,
+				8494178D2F12F1C90022634B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		849417FA2F130EEC0022634B /* Build configuration list for PBXLegacyTarget "BRX-Motion-Build-MediaPipe-Model" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				849417F82F130EEC0022634B /* Debug */,
+				849417F92F130EEC0022634B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		849419462F13A9180022634B /* Build configuration list for PBXNativeTarget "BRX-Motion-MediaPipe-Model-Asset" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				849419472F13A9180022634B /* Debug */,
+				849419482F13A9180022634B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		84E2D5B02F12ED6600653972 /* Build configuration list for PBXProject "BRX-Motion" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				84E2D5BF2F12ED6600653972 /* Debug */,
+				84E2D5C02F12ED6600653972 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 84E2D5AD2F12ED6600653972 /* Project object */;
+}

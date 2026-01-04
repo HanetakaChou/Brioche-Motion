@@ -85,6 +85,9 @@
     <ClInclude Include="..\source\brx_motion_animation.h">
       <Filter>source</Filter>
     </ClInclude>
+    <ClInclude Include="..\source\brx_motion_video_detector.h">
+      <Filter>source</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="..\thirdparty\mediapipe\build-windows\bin\win32\mediapipe.dll">

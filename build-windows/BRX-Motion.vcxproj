@@ -54,6 +54,7 @@
     <ClInclude Include="..\source\brx_motion_animation.h" />
     <ClInclude Include="..\source\brx_motion_media_pipe_video_detector.h" />
     <ClInclude Include="..\source\brx_motion_opencv_video_capture.h" />
+    <ClInclude Include="..\source\brx_motion_video_detector.h" />
     <ClInclude Include="..\source\internal_tflite.h" />
   </ItemGroup>
   <ItemGroup>

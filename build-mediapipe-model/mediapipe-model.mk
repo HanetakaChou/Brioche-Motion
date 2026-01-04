@@ -102,11 +102,11 @@ all : \
 
 $(BIN2H_OUT_DIR)/_internal_face_landmarker_task.inl : $(BIN2H_SOURCE_DIR)/face_landmarker.task
 	$(HIDE) $(call host-mkdir,$(BIN2H_OUT_DIR))	
-	$(HIDE) python "$(BIN2H_PATH)" "$(BIN2H_SOURCE_DIR)/face_landmarker.task" "$(BIN2H_OUT_DIR)/_internal_face_landmarker_task.inl" 
+	$(HIDE) python3 "$(BIN2H_PATH)" "$(BIN2H_SOURCE_DIR)/face_landmarker.task" "$(BIN2H_OUT_DIR)/_internal_face_landmarker_task.inl" 
 
 $(BIN2H_OUT_DIR)/_internal_pose_landmarker_full_task.inl : $(BIN2H_SOURCE_DIR)/pose_landmarker_full.task
 	$(HIDE) $(call host-mkdir,$(BIN2H_OUT_DIR))	
-	$(HIDE) python "$(BIN2H_PATH)" "$(BIN2H_SOURCE_DIR)/pose_landmarker_full.task" "$(BIN2H_OUT_DIR)/_internal_pose_landmarker_full_task.inl" 
+	$(HIDE) python3 "$(BIN2H_PATH)" "$(BIN2H_SOURCE_DIR)/pose_landmarker_full.task" "$(BIN2H_OUT_DIR)/_internal_pose_landmarker_full_task.inl" 
 
 clean:
 	$(HIDE) $(call host-rm,$(BIN2H_OUT_DIR)/_internal_face_landmarker_task.inl)
