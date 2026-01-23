@@ -234,8 +234,12 @@ class brx_motion_animation_skeleton_instance final : public brx_motion_skeleton_
 	mcrt_vector<brx_physics_constraint *> m_physics_constraints;
 
 	brx_motion_video_detector const *m_input_video_detector;
+	uint32_t m_input_hand_index;
 	uint32_t m_input_face_index;
 	uint32_t m_input_pose_index;
+	bool m_video_detector_hand_skeleton_joint_translations_model_space_valid[INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT];
+	DirectX::XMFLOAT3 m_video_detector_hand_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT];
+	DirectX::XMFLOAT4 m_video_detector_hand_skeleton_joint_rotations_local_space[32];
 	DirectX::XMFLOAT4 m_video_detector_face_skeleton_joint_rotations_local_space[INTERNAL_VIDEO_DETECTOR_FACE_SKELETON_JOINT_NAME_COUNT];
 	bool m_video_detector_pose_skeleton_joint_translations_model_space_valid[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT];
 	DirectX::XMFLOAT3 m_video_detector_pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT];
@@ -252,11 +256,14 @@ public:
 	inline void uninit();
 
 private:
+	inline void invalidate_input_video_detector();
 	void set_input_video_detector(brx_motion_video_detector const *video_detector) override;
+	void set_input_video_detector_hand_index(uint32_t hand_index) override;
 	void set_input_video_detector_face_index(uint32_t face_index) override;
 	void set_input_video_detector_pose_index(uint32_t pose_index) override;
 	void set_input_animation_instance(brx_motion_animation_instance const *animation_instance) override;
 	brx_motion_video_detector *get_input_video_detector() const override;
+	uint32_t get_input_video_detector_hand_index() const override;
 	uint32_t get_input_video_detector_face_index() const override;
 	uint32_t get_input_video_detector_pose_index() const override;
 	brx_motion_animation_instance *get_input_animation_instance() const override;

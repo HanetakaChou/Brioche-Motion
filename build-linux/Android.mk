@@ -40,6 +40,7 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := BRX-Motion-MediaPipe-Model-Asset
 
 LOCAL_SRC_FILES := \
+    $(LOCAL_PATH)/../models/hand_landmarker_task.cpp \
     $(LOCAL_PATH)/../models/face_landmarker_task.cpp \
     $(LOCAL_PATH)/../models/pose_landmarker_task.cpp
 

@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\models\face_landmarker_task.cpp" />
+    <ClCompile Include="..\models\hand_landmarker_task.cpp" />
     <ClCompile Include="..\models\pose_landmarker_task.cpp" />
     <ClCompile Include="dllmain.cpp" />
   </ItemGroup>
@@ -27,6 +28,9 @@
     <ProjectReference Include="BRX-Motion-MediaPipe-Model.vcxproj">
       <Project>{1b3ad1f1-bbb2-4473-ad0a-f9c1487cd385}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="BRX-Motion-MediaPipe-Model-Asset.def" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>

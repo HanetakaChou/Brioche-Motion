@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		8408EEFC2F261C140015CB85 /* hand_landmarker_task.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8408EEFB2F261C140015CB85 /* hand_landmarker_task.cpp */; };
 		8494194C2F13A9C60022634B /* face_landmarker_task.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8494194A2F13A9C60022634B /* face_landmarker_task.cpp */; };
 		8494194D2F13A9C60022634B /* pose_landmarker_task.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8494194B2F13A9C60022634B /* pose_landmarker_task.cpp */; };
 		849419552F13AB820022634B /* brx_animation_ik_two_joints.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 849419502F13AB820022634B /* brx_animation_ik_two_joints.cpp */; };
@@ -42,6 +43,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		8408EEFB2F261C140015CB85 /* hand_landmarker_task.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = hand_landmarker_task.cpp; path = ../models/hand_landmarker_task.cpp; sourceTree = SOURCE_ROOT; };
 		849417882F12F1C90022634B /* BRX-Motion.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = "BRX-Motion.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
 		849419492F13A9180022634B /* BRX-Motion-MediaPipe-Model-Asset.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = "BRX-Motion-MediaPipe-Model-Asset.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
 		8494194A2F13A9C60022634B /* face_landmarker_task.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = face_landmarker_task.cpp; path = ../models/face_landmarker_task.cpp; sourceTree = SOURCE_ROOT; };
@@ -127,6 +129,7 @@
 				849419522F13AB820022634B /* brx_motion_media_pipe_video_detector.cpp */,
 				849419532F13AB820022634B /* brx_motion_opencv_video_capture.cpp */,
 				849419542F13AB820022634B /* internal_tflite.cpp */,
+				8408EEFB2F261C140015CB85 /* hand_landmarker_task.cpp */,
 				8494194A2F13A9C60022634B /* face_landmarker_task.cpp */,
 				8494194B2F13A9C60022634B /* pose_landmarker_task.cpp */,
 				8494196A2F13AE6F0022634B /* Frameworks */,
@@ -297,6 +300,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8408EEFC2F261C140015CB85 /* hand_landmarker_task.cpp in Sources */,
 				8494194C2F13A9C60022634B /* face_landmarker_task.cpp in Sources */,
 				8494194D2F13A9C60022634B /* pose_landmarker_task.cpp in Sources */,
 			);

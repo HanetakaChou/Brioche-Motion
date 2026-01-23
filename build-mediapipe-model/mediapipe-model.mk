@@ -97,8 +97,13 @@ BIN2H_OUT_DIR := $(LOCAL_PATH)/../models/bin2h
 BIN2H_PATH := $(LOCAL_PATH)/bin2h.py
 
 all : \
+	$(BIN2H_OUT_DIR)/_internal_hand_landmarker_task.inl \
 	$(BIN2H_OUT_DIR)/_internal_face_landmarker_task.inl \
 	$(BIN2H_OUT_DIR)/_internal_pose_landmarker_full_task.inl
+
+$(BIN2H_OUT_DIR)/_internal_hand_landmarker_task.inl : $(BIN2H_SOURCE_DIR)/hand_landmarker.task
+	$(HIDE) $(call host-mkdir,$(BIN2H_OUT_DIR))	
+	$(HIDE) python3 "$(BIN2H_PATH)" "$(BIN2H_SOURCE_DIR)/hand_landmarker.task" "$(BIN2H_OUT_DIR)/_internal_hand_landmarker_task.inl" 
 
 $(BIN2H_OUT_DIR)/_internal_face_landmarker_task.inl : $(BIN2H_SOURCE_DIR)/face_landmarker.task
 	$(HIDE) $(call host-mkdir,$(BIN2H_OUT_DIR))	
@@ -109,6 +114,7 @@ $(BIN2H_OUT_DIR)/_internal_pose_landmarker_full_task.inl : $(BIN2H_SOURCE_DIR)/p
 	$(HIDE) python3 "$(BIN2H_PATH)" "$(BIN2H_SOURCE_DIR)/pose_landmarker_full.task" "$(BIN2H_OUT_DIR)/_internal_pose_landmarker_full_task.inl" 
 
 clean:
+	$(HIDE) $(call host-rm,$(BIN2H_OUT_DIR)/_internal_hand_landmarker_task.inl)
 	$(HIDE) $(call host-rm,$(BIN2H_OUT_DIR)/_internal_face_landmarker_task.inl)
 	$(HIDE) $(call host-rm,$(BIN2H_OUT_DIR)/_internal_pose_landmarker_full_task.inl)
 

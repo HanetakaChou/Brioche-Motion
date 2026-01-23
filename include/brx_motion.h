@@ -513,13 +513,14 @@ public:
     virtual void step() = 0;
 };
 
-extern "C" brx_motion_video_detector *brx_motion_create_video_detector(uint32_t face_count, uint32_t pose_count, bool force_gpu, brx_motion_video_capture *video_capture);
+extern "C" brx_motion_video_detector *brx_motion_create_video_detector(uint32_t hand_count, uint32_t face_count, uint32_t pose_count, bool force_gpu, brx_motion_video_capture *video_capture);
 
 extern "C" void brx_motion_destroy_video_detector(brx_motion_video_detector *video_detector);
 
 class brx_motion_video_detector
 {
 public:
+    virtual uint32_t get_hand_count() const = 0;
     virtual uint32_t get_face_count() const = 0;
     virtual uint32_t get_pose_count() const = 0;
 
@@ -575,6 +576,8 @@ class brx_motion_skeleton_instance
 public:
     virtual void set_input_video_detector(brx_motion_video_detector const *video_detector) = 0;
 
+    virtual void set_input_video_detector_hand_index(uint32_t hand_index) = 0;
+
     virtual void set_input_video_detector_face_index(uint32_t face_index) = 0;
 
     virtual void set_input_video_detector_pose_index(uint32_t pose_index) = 0;
@@ -582,6 +585,8 @@ public:
     virtual void set_input_animation_instance(brx_motion_animation_instance const *animation_instance) = 0;
 
     virtual brx_motion_video_detector *get_input_video_detector() const = 0;
+
+    virtual uint32_t get_input_video_detector_hand_index() const = 0;
 
     virtual uint32_t get_input_video_detector_face_index() const = 0;
 

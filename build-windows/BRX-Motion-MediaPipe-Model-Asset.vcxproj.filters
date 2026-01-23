@@ -18,5 +18,13 @@
     <ClCompile Include="..\models\pose_landmarker_task.cpp">
       <Filter>models</Filter>
     </ClCompile>
+    <ClCompile Include="..\models\hand_landmarker_task.cpp">
+      <Filter>models</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="BRX-Motion-MediaPipe-Model-Asset.def">
+      <Filter>build-windows</Filter>
+    </None>
   </ItemGroup>
 </Project>

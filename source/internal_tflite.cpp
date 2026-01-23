@@ -16,6 +16,8 @@
 //
 
 #include "internal_tflite.h"
+#define CL_TARGET_OPENCL_VERSION 300
+#define CL_NO_EXTENSION_PROTOTYPES
 #include <CL/cl.h>
 #include "../../McRT-Malloc/include/mcrt_vector.h"
 #include <cassert>
@@ -83,31 +85,30 @@ extern bool internal_tflite_check_gpu_support()
     decltype(clReleaseContext) *pfn_release_context = NULL;
     {
         constexpr char const *const function_names[] = {
+            "clGetPlatformIDs",
             "clGetPlatformInfo",
+            "clGetDeviceIDs",
+            "clGetDeviceInfo",
             "clCreateSubDevices",
             "clRetainDevice",
             "clReleaseDevice",
+            "clCreateContext",
             "clCreateContextFromType",
             "clRetainContext",
+            "clReleaseContext",
             "clGetContextInfo",
-            "clCreateCommandQueueWithProperties",
             "clRetainCommandQueue",
             "clReleaseCommandQueue",
             "clGetCommandQueueInfo",
             "clCreateBuffer",
             "clCreateSubBuffer",
             "clCreateImage",
-            "clCreatePipe",
             "clRetainMemObject",
             "clReleaseMemObject",
             "clGetSupportedImageFormats",
             "clGetMemObjectInfo",
             "clGetImageInfo",
-            "clGetPipeInfo",
             "clSetMemObjectDestructorCallback",
-            "clSVMAlloc",
-            "clSVMFree",
-            "clCreateSamplerWithProperties",
             "clRetainSampler",
             "clReleaseSampler",
             "clGetSamplerInfo",
@@ -127,8 +128,6 @@ extern bool internal_tflite_check_gpu_support()
             "clRetainKernel",
             "clReleaseKernel",
             "clSetKernelArg",
-            "clSetKernelArgSVMPointer",
-            "clSetKernelExecInfo",
             "clGetKernelInfo",
             "clGetKernelArgInfo",
             "clGetKernelWorkGroupInfo",
@@ -163,11 +162,6 @@ extern bool internal_tflite_check_gpu_support()
             "clEnqueueNativeKernel",
             "clEnqueueMarkerWithWaitList",
             "clEnqueueBarrierWithWaitList",
-            "clEnqueueSVMFree",
-            "clEnqueueSVMMemcpy",
-            "clEnqueueSVMMemFill",
-            "clEnqueueSVMMap",
-            "clEnqueueSVMUnmap",
             "clGetExtensionFunctionAddressForPlatform",
             "clCreateImage2D",
             "clCreateImage3D",
@@ -178,8 +172,7 @@ extern bool internal_tflite_check_gpu_support()
             "clGetExtensionFunctionAddress",
             "clCreateCommandQueue",
             "clCreateSampler",
-            "clEnqueueTask",
-        };
+            "clEnqueueTask"};
 
         for (size_t function_index = 0U; function_index < (sizeof(function_names) / sizeof(function_names[0])); ++function_index)
         {

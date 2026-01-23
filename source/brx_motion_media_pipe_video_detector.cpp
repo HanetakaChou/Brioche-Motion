@@ -21,6 +21,7 @@
 #include "../../Brioche-Window-System-Integration/include/brx_wsi.h"
 #include "../../McRT-Malloc/include/mcrt_tick_count.h"
 #include "../../McRT-Malloc/include/mcrt_malloc.h"
+#include <mediapipe/tasks/c/vision/hand_landmarker/hand_landmarker.h>
 #include <mediapipe/tasks/c/vision/face_landmarker/face_landmarker.h>
 #include <mediapipe/tasks/c/vision/pose_landmarker/pose_landmarker.h>
 #include <cassert>
@@ -28,128 +29,152 @@
 #include <algorithm>
 #include <new>
 
+#include "../models/hand_landmarker_task.h"
 #include "../models/face_landmarker_task.h"
 #include "../models/pose_landmarker_task.h"
 
-static constexpr uint32_t const INTERNAL_MEIDA_PIPE_MAX_FACE_COUNT = 2U;
+static constexpr uint32_t const INTERNAL_MEIDA_PIPE_MAX_HAND_COUNT = 5U;
+static constexpr uint32_t const INTERNAL_MEIDA_PIPE_MAX_FACE_COUNT = 5U;
 static constexpr uint32_t const INTERNAL_MEIDA_PIPE_MAX_POSE_COUNT = 5U;
 
-// https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker
-// https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker
-// https://developer.apple.com/documentation/arkit/arfaceanchor/blendshapelocation
-// https://developer.apple.com/documentation/arkit/arskeleton/jointname
-
+// https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker/index#models
 enum
 {
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_NEUTRAL = 0,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_BROW_DOWN_LEFT = 1,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_BROW_DOWN_RIGHT = 2,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_BROW_INNER_UP = 3,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_BROW_OUTER_UP_LEFT = 4,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_BROW_OUTER_UP_RIGHT = 5,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_CHEEK_PUFF = 6,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_CHEEK_SQUINT_LEFT = 7,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_CHEEK_SQUINT_RIGHT = 8,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_BLINK_LEFT = 9,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_BLINK_RIGHT = 10,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_DOWN_LEFT = 11,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_DOWN_RIGHT = 12,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_IN_LEFT = 13,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_IN_RIGHT = 14,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_OUT_LEFT = 15,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_OUT_RIGHT = 16,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_UP_LEFT = 17,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_UP_RIGHT = 18,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_SQUINT_LEFT = 19,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_SQUINT_RIGHT = 20,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_WIDE_LEFT = 21,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_WIDE_RIGHT = 22,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_JAW_FORWARD = 23,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_JAW_LEFT = 24,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_JAW_OPEN = 25,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_JAW_RIGHT = 26,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_CLOSE = 27,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_DIMPLE_LEFT = 28,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_DIMPLE_RIGHT = 29,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_FROWN_LEFT = 30,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_FROWN_RIGHT = 31,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_FUNNEL = 32,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_LEFT = 33,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_LOWER_DOWN_LEFT = 34,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_LOWER_DOWN_RIGHT = 35,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_PRESS_LEFT = 36,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_PRESS_RIGHT = 37,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_PUCKER = 38,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_RIGHT = 39,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_ROLL_LOWER = 40,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_ROLL_UPPER = 41,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_SHRUG_LOWER = 42,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_SHRUG_UPPER = 43,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_SMILE_LEFT = 44,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_SMILE_RIGHT = 45,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_STRETCH_LEFT = 46,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_STRETCH_RIGHT = 47,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_UPPER_UP_LEFT = 48,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_UPPER_UP_RIGHT = 49,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_NOSE_SNEER_LEFT = 50,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_NOSE_SNEER_RIGHT = 51,
-    INTERNAL_MEDIA_PIPE_WEIGHT_NAME_COUNT = 52
+    INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_WRIST = 0,
+    INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_CMC = 1,
+    INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_MCP = 2,
+    INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_IP = 3,
+    INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_TIP = 4,
+    INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_MCP = 5,
+    INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_PIP = 6,
+    INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_DIP = 7,
+    INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_TIP = 8,
+    INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_MCP = 9,
+    INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_PIP = 10,
+    INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_DIP = 11,
+    INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_TIP = 12,
+    INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_MCP = 13,
+    INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_PIP = 14,
+    INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_DIP = 15,
+    INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_TIP = 16,
+    INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_MCP = 17,
+    INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_PIP = 18,
+    INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_DIP = 19,
+    INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_TIP = 20,
+    INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_COUNT = 21
 };
 
-static constexpr char const *const internal_media_pipe_weight_name_strings[] =
-    {
-        "_neutral",
-        "browDownLeft",
-        "browDownRight",
-        "browInnerUp",
-        "browOuterUpLeft",
-        "browOuterUpRight",
-        "cheekPuff",
-        "cheekSquintLeft",
-        "cheekSquintRight",
-        "eyeBlinkLeft",
-        "eyeBlinkRight",
-        "eyeLookDownLeft",
-        "eyeLookDownRight",
-        "eyeLookInLeft",
-        "eyeLookInRight",
-        "eyeLookOutLeft",
-        "eyeLookOutRight",
-        "eyeLookUpLeft",
-        "eyeLookUpRight",
-        "eyeSquintLeft",
-        "eyeSquintRight",
-        "eyeWideLeft",
-        "eyeWideRight",
-        "jawForward",
-        "jawLeft",
-        "jawOpen",
-        "jawRight",
-        "mouthClose",
-        "mouthDimpleLeft",
-        "mouthDimpleRight",
-        "mouthFrownLeft",
-        "mouthFrownRight",
-        "mouthFunnel",
-        "mouthLeft",
-        "mouthLowerDownLeft",
-        "mouthLowerDownRight",
-        "mouthPressLeft",
-        "mouthPressRight",
-        "mouthPucker",
-        "mouthRight",
-        "mouthRollLower",
-        "mouthRollUpper",
-        "mouthShrugLower",
-        "mouthShrugUpper",
-        "mouthSmileLeft",
-        "mouthSmileRight",
-        "mouthStretchLeft",
-        "mouthStretchRight",
-        "mouthUpperUpLeft",
-        "mouthUpperUpRight",
-        "noseSneerLeft",
-        "noseSneerRight"};
+// https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker#models
+enum
+{
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_NEUTRAL = 0,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_BROW_DOWN_LEFT = 1,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_BROW_DOWN_RIGHT = 2,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_BROW_INNER_UP = 3,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_BROW_OUTER_UP_LEFT = 4,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_BROW_OUTER_UP_RIGHT = 5,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_CHEEK_PUFF = 6,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_CHEEK_SQUINT_LEFT = 7,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_CHEEK_SQUINT_RIGHT = 8,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_BLINK_LEFT = 9,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_BLINK_RIGHT = 10,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_DOWN_LEFT = 11,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_DOWN_RIGHT = 12,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_IN_LEFT = 13,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_IN_RIGHT = 14,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_OUT_LEFT = 15,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_OUT_RIGHT = 16,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_UP_LEFT = 17,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_UP_RIGHT = 18,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_SQUINT_LEFT = 19,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_SQUINT_RIGHT = 20,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_WIDE_LEFT = 21,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_WIDE_RIGHT = 22,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_JAW_FORWARD = 23,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_JAW_LEFT = 24,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_JAW_OPEN = 25,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_JAW_RIGHT = 26,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_CLOSE = 27,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_DIMPLE_LEFT = 28,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_DIMPLE_RIGHT = 29,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_FROWN_LEFT = 30,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_FROWN_RIGHT = 31,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_FUNNEL = 32,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_LEFT = 33,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_LOWER_DOWN_LEFT = 34,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_LOWER_DOWN_RIGHT = 35,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_PRESS_LEFT = 36,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_PRESS_RIGHT = 37,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_PUCKER = 38,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_RIGHT = 39,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_ROLL_LOWER = 40,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_ROLL_UPPER = 41,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_SHRUG_LOWER = 42,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_SHRUG_UPPER = 43,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_SMILE_LEFT = 44,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_SMILE_RIGHT = 45,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_STRETCH_LEFT = 46,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_STRETCH_RIGHT = 47,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_UPPER_UP_LEFT = 48,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_UPPER_UP_RIGHT = 49,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_NOSE_SNEER_LEFT = 50,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_NOSE_SNEER_RIGHT = 51,
+    INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_COUNT = 52
+};
+
+static constexpr char const *const internal_media_pipe_face_weight_name_strings[] = {
+    "_neutral",
+    "browDownLeft",
+    "browDownRight",
+    "browInnerUp",
+    "browOuterUpLeft",
+    "browOuterUpRight",
+    "cheekPuff",
+    "cheekSquintLeft",
+    "cheekSquintRight",
+    "eyeBlinkLeft",
+    "eyeBlinkRight",
+    "eyeLookDownLeft",
+    "eyeLookDownRight",
+    "eyeLookInLeft",
+    "eyeLookInRight",
+    "eyeLookOutLeft",
+    "eyeLookOutRight",
+    "eyeLookUpLeft",
+    "eyeLookUpRight",
+    "eyeSquintLeft",
+    "eyeSquintRight",
+    "eyeWideLeft",
+    "eyeWideRight",
+    "jawForward",
+    "jawLeft",
+    "jawOpen",
+    "jawRight",
+    "mouthClose",
+    "mouthDimpleLeft",
+    "mouthDimpleRight",
+    "mouthFrownLeft",
+    "mouthFrownRight",
+    "mouthFunnel",
+    "mouthLeft",
+    "mouthLowerDownLeft",
+    "mouthLowerDownRight",
+    "mouthPressLeft",
+    "mouthPressRight",
+    "mouthPucker",
+    "mouthRight",
+    "mouthRollLower",
+    "mouthRollUpper",
+    "mouthShrugLower",
+    "mouthShrugUpper",
+    "mouthSmileLeft",
+    "mouthSmileRight",
+    "mouthStretchLeft",
+    "mouthStretchRight",
+    "mouthUpperUpLeft",
+    "mouthUpperUpRight",
+    "noseSneerLeft",
+    "noseSneerRight"};
 
 //  nose
 //      left_eye_inner
@@ -196,53 +221,55 @@ static constexpr char const *const internal_media_pipe_weight_name_strings[] =
 
 enum
 {
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_NOSE = 0,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_EYE_INNER = 1,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_EYE = 2,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_EYE_OUTER = 3,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_EYE_INNER = 4,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_EYE = 5,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_EYE_OUTER = 6,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_EAR = 7,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_EAR = 8,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_MOUTH_LEFT = 9,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_MOUTH_RIGHT = 10,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_SHOULDER = 11,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_SHOULDER = 12,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_ELBOW = 13,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_ELBOW = 14,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_WRIST = 15,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_WRIST = 16,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_PINKY = 17,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_PINKY = 18,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_INDEX = 19,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_INDEX = 20,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_THUMB = 21,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_THUMB = 22,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_HIP = 23,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_HIP = 24,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_KNEE = 25,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_KNEE = 26,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_ANKLE = 27,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_ANKLE = 28,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_HEEL = 29,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_HEEL = 30,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_FOOT = 31,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_FOOT = 32,
-    INTERNAL_MEIDA_PIPE_POSITION_NAME_COUNT = 33
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_NOSE = 0,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_EYE_INNER = 1,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_EYE = 2,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_EYE_OUTER = 3,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_EYE_INNER = 4,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_EYE = 5,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_EYE_OUTER = 6,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_EAR = 7,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_EAR = 8,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_MOUTH_LEFT = 9,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_MOUTH_RIGHT = 10,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_SHOULDER = 11,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_SHOULDER = 12,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_ELBOW = 13,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_ELBOW = 14,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_WRIST = 15,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_WRIST = 16,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_PINKY = 17,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_PINKY = 18,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_INDEX = 19,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_INDEX = 20,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_THUMB = 21,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_THUMB = 22,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_HIP = 23,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_HIP = 24,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_KNEE = 25,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_KNEE = 26,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_ANKLE = 27,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_ANKLE = 28,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_HEEL = 29,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_HEEL = 30,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_FOOT = 31,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_FOOT = 32,
+    INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_COUNT = 33
 };
+
+static inline uint32_t internal_get_hand_skeleton_joint_index(BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name);
 
 static inline uint32_t internal_get_face_skeleton_joint_index(BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name);
 
 static inline uint32_t internal_get_pose_skeleton_joint_index(BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name);
 
-extern "C" brx_motion_video_detector *brx_motion_create_video_detector(uint32_t face_count, uint32_t pose_count, bool force_gpu, brx_motion_video_capture *video_capture)
+extern "C" brx_motion_video_detector *brx_motion_create_video_detector(uint32_t hand_count, uint32_t face_count, uint32_t pose_count, bool force_gpu, brx_motion_video_capture *video_capture)
 {
     void *new_unwrapped_video_detector_base = mcrt_malloc(sizeof(brx_motion_media_pipe_video_detector), alignof(brx_motion_media_pipe_video_detector));
     assert(NULL != new_unwrapped_video_detector_base);
 
     brx_motion_media_pipe_video_detector *new_unwrapped_video_detector = new (new_unwrapped_video_detector_base) brx_motion_media_pipe_video_detector{};
-    if (new_unwrapped_video_detector->init(face_count, pose_count, force_gpu, video_capture))
+    if (new_unwrapped_video_detector->init(hand_count, face_count, pose_count, force_gpu, video_capture))
     {
         return new_unwrapped_video_detector;
     }
@@ -283,21 +310,24 @@ extern "C" void brx_motion_destroy_video_detector(brx_motion_video_detector *wra
     internal_release_video_detector(wrapped_video_detector);
 }
 
-brx_motion_media_pipe_video_detector::brx_motion_media_pipe_video_detector() : m_ref_count(0U), m_face_count(0U), m_pose_count(0U), m_face_landmarker(NULL), m_pose_landmarker(NULL), m_timestamp_ms(0), m_enable_debug_renderer(false), m_debug_renderer_window(NULL), m_input_video_capture(NULL)
+brx_motion_media_pipe_video_detector::brx_motion_media_pipe_video_detector() : m_ref_count(0U), m_hand_count(0U), m_face_count(0U), m_pose_count(0U), m_hand_landmarker(NULL), m_face_landmarker(NULL), m_pose_landmarker(NULL), m_timestamp_ms(0), m_enable_debug_renderer(false), m_debug_renderer_window(NULL), m_input_video_capture(NULL)
 {
 }
 
 brx_motion_media_pipe_video_detector::~brx_motion_media_pipe_video_detector()
 {
     assert(0U == this->m_ref_count);
+    assert(0U == this->m_hand_count);
     assert(0U == this->m_face_count);
     assert(0U == this->m_pose_count);
+    assert(NULL == this->m_hand_landmarker);
     assert(NULL == this->m_face_landmarker);
     assert(NULL == this->m_pose_landmarker);
+    assert(this->m_hands_skeleton_joint_translations_model_space_valid.empty());
+    assert(this->m_hands_skeleton_joint_translations_model_space.empty());
     assert(this->m_faces_morph_target_weights.empty());
-    assert(this->m_poses_skeleton_joint_translations_model_space.empty());
     assert(this->m_poses_skeleton_joint_translations_model_space_valid.empty());
-    assert(this->m_debug_renderer_window_name.empty());
+    assert(this->m_poses_skeleton_joint_translations_model_space.empty());
     assert(!this->m_enable_debug_renderer);
     assert(NULL == this->m_input_video_capture);
 }
@@ -306,7 +336,7 @@ extern void internal_retain_video_capture(brx_motion_video_capture *wrapped_vide
 
 extern void internal_release_video_capture(brx_motion_video_capture *wrapped_video_capture);
 
-bool brx_motion_media_pipe_video_detector::init(uint32_t face_count, uint32_t pose_count, bool force_gpu, brx_motion_video_capture const *video_capture)
+bool brx_motion_media_pipe_video_detector::init(uint32_t hand_count, uint32_t face_count, uint32_t pose_count, bool force_gpu, brx_motion_video_capture const *video_capture)
 {
     assert(0U == this->m_ref_count);
     this->m_ref_count = 1U;
@@ -322,114 +352,238 @@ bool brx_motion_media_pipe_video_detector::init(uint32_t face_count, uint32_t po
         this->m_enable_gpu = false;
     }
 
+    bool has_error = false;
+
+    assert(0U == this->m_hand_count);
+    this->m_hand_count = std::min(std::max(0U, hand_count), INTERNAL_MEIDA_PIPE_MAX_HAND_COUNT);
+
+    if ((!has_error) && (this->m_hand_count > 0U))
+    {
+        {
+            HandLandmarkerOptions options;
+            options.base_options.model_asset_buffer = reinterpret_cast<char const *>(brx_motion_mediapipe_model_asset_get_hand_landmarker_task_base());
+            options.base_options.model_asset_buffer_count = static_cast<unsigned int>(brx_motion_mediapipe_model_asset_get_hand_landmarker_task_size());
+            options.base_options.model_asset_path = NULL;
+            options.running_mode = VIDEO;
+            options.num_hands = 2U * static_cast<int>(this->m_hand_count);
+            options.result_callback = NULL;
+
+            assert(NULL == this->m_hand_landmarker);
+            this->m_hand_landmarker = hand_landmarker_create(&options, NULL);
+        }
+
+        if (NULL != this->m_hand_landmarker)
+        {
+            assert(this->m_hands_skeleton_joint_translations_model_space_valid.empty());
+            // initialize "false"
+            this->m_hands_skeleton_joint_translations_model_space_valid.resize(this->m_hand_count);
+#ifndef NDEBUG
+            for (uint32_t hand_index = 0U; hand_index < this->m_hand_count; ++hand_index)
+            {
+                std::array<bool, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT> &hand_skeleton_joint_translations_model_space_valid = this->m_hands_skeleton_joint_translations_model_space_valid[hand_index];
+                for (uint32_t hand_skeleton_joint_name_index = 0U; hand_skeleton_joint_name_index < INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT; ++hand_skeleton_joint_name_index)
+                {
+                    assert(!hand_skeleton_joint_translations_model_space_valid[hand_skeleton_joint_name_index]);
+                }
+            }
+#endif
+
+            assert(this->m_hands_skeleton_joint_translations_model_space.empty());
+            this->m_hands_skeleton_joint_translations_model_space.resize(this->m_hand_count);
+        }
+        else
+        {
+            assert(!has_error);
+            has_error = true;
+        }
+    }
+
     assert(0U == this->m_face_count);
     this->m_face_count = std::min(std::max(0U, face_count), INTERNAL_MEIDA_PIPE_MAX_FACE_COUNT);
 
-    if (this->m_face_count > 0U)
+    if ((!has_error) && (this->m_face_count > 0U))
     {
-        FaceLandmarkerOptions options;
-        options.base_options.model_asset_buffer = reinterpret_cast<char const *>(brx_motion_mediapipe_model_asset_get_face_landmarker_task_base());
-        options.base_options.model_asset_buffer_count = static_cast<unsigned int>(brx_motion_mediapipe_model_asset_get_face_landmarker_task_size());
-        options.base_options.model_asset_path = NULL;
-        options.running_mode = VIDEO;
-        options.num_faces = static_cast<int>(this->m_face_count);
-        options.output_face_blendshapes = true;
-        options.output_facial_transformation_matrixes = true;
-        options.result_callback = NULL;
-
-        assert(NULL == this->m_face_landmarker);
-        this->m_face_landmarker = face_landmarker_create(&options, NULL);
-        if (NULL == this->m_face_landmarker)
         {
-            this->m_face_count = 0U;
+            FaceLandmarkerOptions options;
+            options.base_options.model_asset_buffer = reinterpret_cast<char const *>(brx_motion_mediapipe_model_asset_get_face_landmarker_task_base());
+            options.base_options.model_asset_buffer_count = static_cast<unsigned int>(brx_motion_mediapipe_model_asset_get_face_landmarker_task_size());
+            options.base_options.model_asset_path = NULL;
+            options.running_mode = VIDEO;
+            options.num_faces = static_cast<int>(this->m_face_count);
+            options.output_face_blendshapes = true;
+            options.output_facial_transformation_matrixes = true;
+            options.result_callback = NULL;
 
-            internal_tflite_unset_env_force_gpu();
-
-            return false;
+            assert(NULL == this->m_face_landmarker);
+            this->m_face_landmarker = face_landmarker_create(&options, NULL);
         }
 
-        assert(this->m_faces_morph_target_weights.empty());
-        // initialize "0.0F"
-        this->m_faces_morph_target_weights.resize(this->m_face_count);
-
-        assert(this->m_faces_skeleton_joint_rotations.empty());
-        this->m_faces_skeleton_joint_rotations.resize(this->m_face_count);
-
-        // initialize identity
-        for (uint32_t face_index = 0U; face_index < this->m_face_count; ++face_index)
+        if (NULL != this->m_face_landmarker)
         {
-            std::array<DirectX::XMFLOAT4, INTERNAL_VIDEO_DETECTOR_FACE_SKELETON_JOINT_NAME_COUNT> &face_skeleton_joint_rotations = this->m_faces_skeleton_joint_rotations[face_index];
-            for (uint32_t face_skeleton_joint_name_index = 0U; face_skeleton_joint_name_index < INTERNAL_VIDEO_DETECTOR_FACE_SKELETON_JOINT_NAME_COUNT; ++face_skeleton_joint_name_index)
+            assert(this->m_faces_morph_target_weights.empty());
+            // initialize "0.0F"
+            this->m_faces_morph_target_weights.resize(this->m_face_count);
+
+            assert(this->m_faces_skeleton_joint_rotations.empty());
+            this->m_faces_skeleton_joint_rotations.resize(this->m_face_count);
+
+            // initialize identity
+            for (uint32_t face_index = 0U; face_index < this->m_face_count; ++face_index)
             {
-                DirectX::XMStoreFloat4(&face_skeleton_joint_rotations[face_skeleton_joint_name_index], DirectX::XMQuaternionIdentity());
+                std::array<DirectX::XMFLOAT4, INTERNAL_VIDEO_DETECTOR_FACE_SKELETON_JOINT_NAME_COUNT> &face_skeleton_joint_rotations = this->m_faces_skeleton_joint_rotations[face_index];
+                for (uint32_t face_skeleton_joint_name_index = 0U; face_skeleton_joint_name_index < INTERNAL_VIDEO_DETECTOR_FACE_SKELETON_JOINT_NAME_COUNT; ++face_skeleton_joint_name_index)
+                {
+                    DirectX::XMStoreFloat4(&face_skeleton_joint_rotations[face_skeleton_joint_name_index], DirectX::XMQuaternionIdentity());
+                }
             }
+        }
+        else
+        {
+            assert(!has_error);
+            has_error = true;
         }
     }
 
     assert(0U == this->m_pose_count);
     this->m_pose_count = std::min(std::max(0U, pose_count), INTERNAL_MEIDA_PIPE_MAX_POSE_COUNT);
 
-    if (this->m_pose_count > 0U)
+    if ((!has_error) && (this->m_pose_count > 0U))
     {
-        PoseLandmarkerOptions options;
-        options.base_options.model_asset_buffer = reinterpret_cast<char const *>(brx_motion_mediapipe_model_asset_get_pose_landmarker_task_base());
-        options.base_options.model_asset_buffer_count = static_cast<unsigned int>(brx_motion_mediapipe_model_asset_get_pose_landmarker_task_size());
-        options.base_options.model_asset_path = NULL;
-        options.running_mode = VIDEO;
-        options.num_poses = static_cast<int>(this->m_pose_count);
-        options.output_segmentation_masks = false;
-        options.result_callback = NULL;
-
-        assert(NULL == this->m_pose_landmarker);
-        this->m_pose_landmarker = pose_landmarker_create(&options, NULL);
-        if (NULL == this->m_pose_landmarker)
         {
-            this->m_pose_count = 0U;
+            PoseLandmarkerOptions options;
+            options.base_options.model_asset_buffer = reinterpret_cast<char const *>(brx_motion_mediapipe_model_asset_get_pose_landmarker_task_base());
+            options.base_options.model_asset_buffer_count = static_cast<unsigned int>(brx_motion_mediapipe_model_asset_get_pose_landmarker_task_size());
+            options.base_options.model_asset_path = NULL;
+            options.running_mode = VIDEO;
+            options.num_poses = static_cast<int>(this->m_pose_count);
+            options.output_segmentation_masks = false;
+            options.result_callback = NULL;
 
-            if (this->m_face_count > 0U)
-            {
-                assert(!this->m_faces_morph_target_weights.empty());
-                assert(this->m_faces_morph_target_weights.size() == this->m_face_count);
-                this->m_faces_morph_target_weights.clear();
-
-                assert(!this->m_faces_skeleton_joint_rotations.empty());
-                assert(this->m_faces_skeleton_joint_rotations.size() == this->m_face_count);
-                this->m_faces_skeleton_joint_rotations.clear();
-
-                assert(NULL != this->m_face_landmarker);
-                int status_face_landmarker_close = face_landmarker_close(this->m_face_landmarker, NULL);
-                assert(0 == status_face_landmarker_close);
-                this->m_face_landmarker = NULL;
-
-                this->m_face_count = 0U;
-            }
-            else
-            {
-                assert(this->m_faces_morph_target_weights.empty());
-                assert(this->m_faces_skeleton_joint_rotations.empty());
-                assert(NULL == this->m_face_landmarker);
-            }
-
-            internal_tflite_unset_env_force_gpu();
-
-            return false;
+            assert(NULL == this->m_pose_landmarker);
+            this->m_pose_landmarker = pose_landmarker_create(&options, NULL);
         }
 
-        assert(this->m_poses_skeleton_joint_translations_model_space.empty());
-        this->m_poses_skeleton_joint_translations_model_space.resize(this->m_pose_count);
+        if (NULL != this->m_pose_landmarker)
+        {
+            assert(this->m_poses_skeleton_joint_translations_model_space_valid.empty());
+            // initialize "false"
+            this->m_poses_skeleton_joint_translations_model_space_valid.resize(this->m_pose_count);
+#ifndef NDEBUG
+            for (uint32_t pose_index = 0U; pose_index < this->m_pose_count; ++pose_index)
+            {
+                std::array<bool, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT> &pose_skeleton_joint_translations_model_space_valid = this->m_poses_skeleton_joint_translations_model_space_valid[pose_index];
+                for (uint32_t pose_skeleton_joint_name_index = 0U; pose_skeleton_joint_name_index < INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT; ++pose_skeleton_joint_name_index)
+                {
+                    assert(!pose_skeleton_joint_translations_model_space_valid[pose_skeleton_joint_name_index]);
+                }
+            }
+#endif
 
-        assert(this->m_poses_skeleton_joint_translations_model_space_valid.empty());
-        // initialize "false"
-        this->m_poses_skeleton_joint_translations_model_space_valid.resize(this->m_pose_count);
+            assert(this->m_poses_skeleton_joint_translations_model_space.empty());
+            this->m_poses_skeleton_joint_translations_model_space.resize(this->m_pose_count);
+        }
+        else
+        {
+            assert(!has_error);
+            has_error = true;
+        }
     }
 
     internal_tflite_unset_env_force_gpu();
 
-    assert(NULL == this->m_input_video_capture);
-    internal_retain_video_capture(const_cast<brx_motion_video_capture *>(video_capture));
-    this->m_input_video_capture = video_capture;
+    if (!has_error)
+    {
+        assert(NULL == this->m_input_video_capture);
+        internal_retain_video_capture(const_cast<brx_motion_video_capture *>(video_capture));
+        this->m_input_video_capture = video_capture;
 
-    return true;
+        return true;
+    }
+    else
+    {
+        if (NULL != this->m_hand_landmarker)
+        {
+            assert(!this->m_hands_skeleton_joint_translations_model_space_valid.empty());
+            assert(this->m_hands_skeleton_joint_translations_model_space_valid.size() == this->m_hand_count);
+            this->m_hands_skeleton_joint_translations_model_space_valid.clear();
+
+            assert(!this->m_hands_skeleton_joint_translations_model_space.empty());
+            assert(this->m_hands_skeleton_joint_translations_model_space.size() == this->m_hand_count);
+            this->m_hands_skeleton_joint_translations_model_space.clear();
+
+            int status_hand_landmarker_close = hand_landmarker_close(this->m_hand_landmarker, NULL);
+            assert(0 == status_hand_landmarker_close);
+            this->m_hand_landmarker = NULL;
+
+            assert(this->m_hand_count > 0U);
+            this->m_hand_count = 0U;
+        }
+        else
+        {
+            assert(this->m_hands_skeleton_joint_translations_model_space_valid.empty());
+            assert(this->m_hands_skeleton_joint_translations_model_space.empty());
+            assert(NULL == this->m_hand_landmarker);
+
+            this->m_hand_count = 0U;
+        }
+
+        if (NULL != this->m_face_landmarker)
+        {
+            assert(!this->m_faces_morph_target_weights.empty());
+            assert(this->m_faces_morph_target_weights.size() == this->m_face_count);
+            this->m_faces_morph_target_weights.clear();
+
+            assert(!this->m_faces_skeleton_joint_rotations.empty());
+            assert(this->m_faces_skeleton_joint_rotations.size() == this->m_face_count);
+            this->m_faces_skeleton_joint_rotations.clear();
+
+            int status_face_landmarker_close = face_landmarker_close(this->m_face_landmarker, NULL);
+            assert(0 == status_face_landmarker_close);
+            this->m_face_landmarker = NULL;
+
+            assert(this->m_face_count > 0U);
+            this->m_face_count = 0U;
+        }
+        else
+        {
+            assert(this->m_faces_morph_target_weights.empty());
+            assert(this->m_faces_skeleton_joint_rotations.empty());
+            assert(NULL == this->m_face_landmarker);
+
+            this->m_face_count = 0U;
+        }
+
+        if (NULL != this->m_pose_landmarker)
+        {
+            assert(!this->m_poses_skeleton_joint_translations_model_space_valid.empty());
+            assert(this->m_poses_skeleton_joint_translations_model_space_valid.size() == this->m_pose_count);
+            this->m_poses_skeleton_joint_translations_model_space_valid.clear();
+
+            assert(!this->m_poses_skeleton_joint_translations_model_space.empty());
+            assert(this->m_poses_skeleton_joint_translations_model_space.size() == this->m_pose_count);
+            this->m_poses_skeleton_joint_translations_model_space.clear();
+
+            int status_pose_landmarker_close = pose_landmarker_close(this->m_pose_landmarker, NULL);
+            assert(0 == status_pose_landmarker_close);
+            this->m_pose_landmarker = NULL;
+
+            assert(this->m_pose_count > 0U);
+            this->m_pose_count = 0U;
+        }
+        else
+        {
+            assert(this->m_poses_skeleton_joint_translations_model_space_valid.empty());
+            assert(this->m_poses_skeleton_joint_translations_model_space.empty());
+            assert(NULL == this->m_pose_landmarker);
+
+            this->m_pose_count = 0U;
+        }
+
+        assert(1U == this->m_ref_count);
+        this->m_ref_count = 0U;
+
+        return false;
+    }
 }
 
 void brx_motion_media_pipe_video_detector::uninit()
@@ -447,14 +601,10 @@ void brx_motion_media_pipe_video_detector::uninit()
         this->m_debug_renderer_window = NULL;
 
         this->m_enable_debug_renderer = false;
-
-        assert(!this->m_debug_renderer_window_name.empty());
-        this->m_debug_renderer_window_name.clear();
     }
     else
     {
         assert(!this->m_enable_debug_renderer);
-        assert(this->m_debug_renderer_window_name.empty());
     }
 
     if (this->m_pose_count > 0U)
@@ -505,6 +655,31 @@ void brx_motion_media_pipe_video_detector::uninit()
         assert(this->m_faces_skeleton_joint_rotations.empty());
         assert(NULL == this->m_face_landmarker);
     }
+
+    if (this->m_hand_count > 0U)
+    {
+        assert(!this->m_hands_skeleton_joint_translations_model_space.empty());
+        assert(this->m_hands_skeleton_joint_translations_model_space.size() == this->m_hand_count);
+        this->m_hands_skeleton_joint_translations_model_space.clear();
+
+        assert(!this->m_hands_skeleton_joint_translations_model_space_valid.empty());
+        assert(this->m_hands_skeleton_joint_translations_model_space_valid.size() == this->m_hand_count);
+        this->m_hands_skeleton_joint_translations_model_space_valid.clear();
+
+        assert(NULL != this->m_hand_landmarker);
+        int status_hand_landmarker_close = hand_landmarker_close(this->m_hand_landmarker, NULL);
+        assert(0 == status_hand_landmarker_close);
+        this->m_hand_landmarker = NULL;
+
+        this->m_hand_count = 0U;
+    }
+    else
+    {
+        assert(this->m_hands_skeleton_joint_translations_model_space.empty());
+        assert(this->m_hands_skeleton_joint_translations_model_space_valid.empty());
+
+        assert(NULL == this->m_hand_landmarker);
+    }
 }
 
 inline void brx_motion_media_pipe_video_detector::retain()
@@ -519,6 +694,11 @@ inline uint32_t brx_motion_media_pipe_video_detector::internal_release()
     assert(this->m_ref_count > 0U);
     --this->m_ref_count;
     return this->m_ref_count;
+}
+
+uint32_t brx_motion_media_pipe_video_detector::get_hand_count() const
+{
+    return this->m_hand_count;
 }
 
 uint32_t brx_motion_media_pipe_video_detector::get_face_count() const
@@ -541,37 +721,25 @@ brx_motion_video_capture *brx_motion_media_pipe_video_detector::get_input() cons
     return const_cast<brx_motion_video_capture *>(this->m_input_video_capture);
 }
 
-void brx_motion_media_pipe_video_detector::set_enable_debug_renderer(bool enable_debug_renderer, char const *debug_renderer_window_name)
+void brx_motion_media_pipe_video_detector::set_enable_debug_renderer(bool enable_debug_renderer, char const *in_debug_renderer_window_name)
 {
     if (enable_debug_renderer != this->m_enable_debug_renderer)
     {
         if (enable_debug_renderer)
         {
-            {
-                char text_timestamp[] = {"18446744073709551615"};
-                std::snprintf(text_timestamp, sizeof(text_timestamp) / sizeof(text_timestamp[0]), "%llu", static_cast<long long unsigned>(mcrt_tick_count_now()));
-                text_timestamp[(sizeof(text_timestamp) / sizeof(text_timestamp[0])) - 1] = '\0';
-
-                assert(this->m_debug_renderer_window_name.empty());
-                this->m_debug_renderer_window_name = debug_renderer_window_name;
-                this->m_debug_renderer_window_name += " Brioche Motion Tick Count [";
-                this->m_debug_renderer_window_name += text_timestamp;
-                this->m_debug_renderer_window_name += "]";
-            }
+            mcrt_string debug_renderer_window_name;
+            debug_renderer_window_name = " Brioche Motion Video Detector [";
+            debug_renderer_window_name += in_debug_renderer_window_name;
+            debug_renderer_window_name += "]";
 
             assert(NULL == this->m_debug_renderer_window);
-            this->m_debug_renderer_window = brx_wsi_create_image_window(this->m_debug_renderer_window_name.c_str());
+            this->m_debug_renderer_window = brx_wsi_create_image_window(debug_renderer_window_name.c_str());
         }
         else
         {
             assert(NULL != this->m_debug_renderer_window);
             brx_wsi_destroy_image_window(this->m_debug_renderer_window);
             this->m_debug_renderer_window = NULL;
-
-            {
-                assert(!this->m_debug_renderer_window_name.empty());
-                this->m_debug_renderer_window_name.clear();
-            }
         }
 
         this->m_enable_debug_renderer = enable_debug_renderer;
@@ -593,6 +761,8 @@ void brx_motion_media_pipe_video_detector::step()
 
     if (!video_frame->empty())
     {
+        HandLandmarkerResult hand_landmarker_result = {};
+        int status_hand_landmarker_detect_for_video = -1;
         FaceLandmarkerResult face_landmarker_result = {};
         int status_face_landmarker_detect_for_video = -1;
         PoseLandmarkerResult pose_landmarker_result = {};
@@ -653,6 +823,16 @@ void brx_motion_media_pipe_video_detector::step()
                 assert(input_image.isContinuous());
             }
 
+            if (this->m_hand_count > 0U)
+            {
+                assert(NULL != this->m_hand_landmarker);
+                status_hand_landmarker_detect_for_video = hand_landmarker_detect_for_video(this->m_hand_landmarker, &mediapipe_input_image, this->m_timestamp_ms, &hand_landmarker_result, NULL);
+            }
+            else
+            {
+                assert(NULL == this->m_hand_landmarker);
+            }
+
             if (this->m_face_count > 0U)
             {
                 assert(NULL != this->m_face_landmarker);
@@ -681,6 +861,332 @@ void brx_motion_media_pipe_video_detector::step()
         }
 
         {
+            // Hand Landmarker
+
+            for (uint32_t hand_index = 0U; hand_index < this->m_hand_count; ++hand_index)
+            {
+                std::array<bool, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT> &hand_skeleton_joint_translations_model_space_valid = this->m_hands_skeleton_joint_translations_model_space_valid[hand_index];
+                for (uint32_t hand_skeleton_joint_name_index = 0U; hand_skeleton_joint_name_index < INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT; ++hand_skeleton_joint_name_index)
+                {
+                    hand_skeleton_joint_translations_model_space_valid[hand_skeleton_joint_name_index] = false;
+                }
+            }
+
+            if ((this->m_hand_count > 0U) && (0 == status_hand_landmarker_detect_for_video))
+            {
+                {
+                    assert(hand_landmarker_result.handedness_count <= (2U * this->m_hand_count));
+
+                    mcrt_vector<bool> handedness_right_marks(static_cast<size_t>(hand_landmarker_result.handedness_count));
+                    {
+                        mcrt_vector<std::pair<float, uint32_t>> handedness_right_scores_and_indices;
+                        mcrt_vector<std::pair<float, uint32_t>> handedness_left_scores_and_indices;
+                        for (uint32_t both_hand_index = 0U; both_hand_index < hand_landmarker_result.handedness_count; ++both_hand_index)
+                        {
+                            if (hand_landmarker_result.handedness[both_hand_index].categories_count > 0U)
+                            {
+                                assert(1U == hand_landmarker_result.handedness[both_hand_index].categories_count);
+                                if (0 == std::strcmp("Right", hand_landmarker_result.handedness[both_hand_index].categories[0].category_name))
+                                {
+                                    handedness_right_scores_and_indices.emplace_back(hand_landmarker_result.handedness[both_hand_index].categories[0].score, both_hand_index);
+                                }
+                                else if (0 == std::strcmp("Left", hand_landmarker_result.handedness[both_hand_index].categories[0].category_name))
+                                {
+                                    handedness_left_scores_and_indices.emplace_back(hand_landmarker_result.handedness[both_hand_index].categories[0].score, both_hand_index);
+                                }
+                                else
+                                {
+                                    assert(false);
+                                }
+                            }
+                            else
+                            {
+                                assert(false);
+                            }
+                        }
+                        assert(hand_landmarker_result.handedness_count == (handedness_right_scores_and_indices.size() + handedness_left_scores_and_indices.size()));
+
+                        if (handedness_right_scores_and_indices.size() > this->m_hand_count)
+                        {
+                            std::stable_sort(
+                                handedness_right_scores_and_indices.begin(),
+                                handedness_right_scores_and_indices.end(),
+                                [](std::pair<float, uint32_t> const &x, std::pair<float, uint32_t> const &y)
+                                {
+                                    return x.first > y.first;
+                                });
+
+                            for (uint32_t both_hand_index = 0U; both_hand_index < hand_landmarker_result.handedness_count; ++both_hand_index)
+                            {
+                                handedness_right_marks[both_hand_index] = false;
+                            }
+
+                            for (uint32_t right_hand_index = 0U; right_hand_index < this->m_hand_count; ++right_hand_index)
+                            {
+                                uint32_t right_both_hand_index = handedness_right_scores_and_indices[right_hand_index].second;
+                                assert(!handedness_right_marks[right_both_hand_index]);
+                                handedness_right_marks[right_both_hand_index] = true;
+                            }
+                        }
+                        else if (handedness_left_scores_and_indices.size() > this->m_hand_count)
+                        {
+                            std::stable_sort(
+                                handedness_left_scores_and_indices.begin(),
+                                handedness_left_scores_and_indices.end(),
+                                [](std::pair<float, uint32_t> const &x, std::pair<float, uint32_t> const &y)
+                                {
+                                    return x.first > y.first;
+                                });
+
+                            for (uint32_t both_hand_index = 0U; both_hand_index < hand_landmarker_result.handedness_count; ++both_hand_index)
+                            {
+                                handedness_right_marks[both_hand_index] = true;
+                            }
+
+                            for (uint32_t left_hand_index = 0U; left_hand_index < this->m_hand_count; ++left_hand_index)
+                            {
+                                uint32_t left_both_hand_index = handedness_left_scores_and_indices[left_hand_index].second;
+                                assert(handedness_right_marks[left_both_hand_index]);
+                                handedness_right_marks[left_both_hand_index] = false;
+                            }
+                        }
+                        else
+                        {
+                            assert(handedness_right_scores_and_indices.size() <= this->m_hand_count);
+                            assert(handedness_left_scores_and_indices.size() <= this->m_hand_count);
+
+                            for (std::pair<float, uint32_t> const &handedness_right_score_and_index : handedness_right_scores_and_indices)
+                            {
+                                uint32_t right_both_hand_index = handedness_right_score_and_index.second;
+                                handedness_right_marks[right_both_hand_index] = true;
+                            }
+
+                            for (std::pair<float, uint32_t> const &handedness_left_score_and_index : handedness_left_scores_and_indices)
+                            {
+                                uint32_t left_both_hand_index = handedness_left_score_and_index.second;
+                                handedness_right_marks[left_both_hand_index] = false;
+                            }
+                        }
+                    }
+
+                    assert(hand_landmarker_result.hand_world_landmarks_count <= (2U * this->m_hand_count));
+
+                    uint32_t right_hand_index = 0U;
+                    uint32_t left_hand_index = 0U;
+
+                    for (uint32_t both_hand_index = 0U; both_hand_index < (2U * this->m_hand_count) && both_hand_index < hand_landmarker_result.handedness_count && both_hand_index < hand_landmarker_result.hand_world_landmarks_count; ++both_hand_index)
+                    {
+                        bool const handedness_right = handedness_right_marks[both_hand_index];
+
+                        uint32_t hand_index;
+                        if (handedness_right)
+                        {
+                            hand_index = right_hand_index;
+                            ++right_hand_index;
+                        }
+                        else
+                        {
+                            hand_index = left_hand_index;
+                            ++left_hand_index;
+                        }
+
+                        if (hand_index < this->m_hand_count)
+                        {
+                            Landmarks const &hand_world_landmark = hand_landmarker_result.hand_world_landmarks[both_hand_index];
+
+                            DirectX::XMFLOAT3 media_pipe_positions[INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_COUNT];
+                            // initialize "false"
+                            bool media_pipe_positions_valid[INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_COUNT] = {};
+#ifndef NDEBUG
+                            for (uint32_t hand_position_name_index = 0U; hand_position_name_index < INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_COUNT; ++hand_position_name_index)
+                            {
+                                assert(!media_pipe_positions_valid[hand_position_name_index]);
+                            }
+#endif
+
+                            assert(INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_COUNT == hand_world_landmark.landmarks_count);
+
+                            for (uint32_t world_landmark_index = 0U; world_landmark_index < hand_world_landmark.landmarks_count; ++world_landmark_index)
+                            {
+                                Landmark const &landmark = hand_world_landmark.landmarks[world_landmark_index];
+
+                                if (((!landmark.has_visibility) || (landmark.visibility > 0.5F)) && ((!landmark.has_presence) || (landmark.presence > 0.5F)))
+                                {
+                                    media_pipe_positions[world_landmark_index] = DirectX::XMFLOAT3(landmark.x, landmark.y, landmark.z);
+                                    media_pipe_positions_valid[world_landmark_index] = true;
+                                }
+                            }
+
+                            assert(hand_index < this->m_hands_skeleton_joint_translations_model_space.size());
+                            assert(this->m_hand_count == this->m_hands_skeleton_joint_translations_model_space.size());
+                            assert(hand_index < this->m_hands_skeleton_joint_translations_model_space_valid.size());
+                            assert(this->m_hand_count == this->m_hands_skeleton_joint_translations_model_space_valid.size());
+                            std::array<DirectX::XMFLOAT3, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT> &hand_skeleton_joint_translations_model_space = this->m_hands_skeleton_joint_translations_model_space[hand_index];
+                            std::array<bool, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT> &hand_skeleton_joint_translations_model_space_valid = this->m_hands_skeleton_joint_translations_model_space_valid[hand_index];
+
+                            // MediaPipe hand
+                            // RH
+                            // Right -X
+                            // Up -Y
+                            // Forward -Z
+
+                            // glTF
+                            // RH
+                            // Right -X
+                            // Up +Y
+                            // Forward +Z
+
+                            constexpr DirectX::XMFLOAT4X4 const media_pipe_to_gltf(
+                                1.0F, 0.0F, 0.0F, 0.0F,
+                                0.0F, -1.0F, 0.0F, 0.0F,
+                                0.0F, 0.0F, -1.0F, 0.0F,
+                                0.0F, 0.0F, 0.0F, 1.0F);
+
+                            DirectX::XMMATRIX simd_media_pipe_to_gltf = DirectX::XMLoadFloat4x4(&media_pipe_to_gltf);
+
+                            constexpr uint32_t const internal_media_pipe_right_mappings[][2] = {
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_WRIST, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_WRIST},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_CMC, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_CMC},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_MCP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_MCP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_IP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_IP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_TIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_TIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_MCP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_MCP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_PIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_PIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_DIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_DIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_TIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_TIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_MCP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_MCP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_PIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_PIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_DIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_DIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_TIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_TIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_MCP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_MCP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_PIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_PIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_DIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_DIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_TIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_TIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_MCP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_MCP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_PIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_PIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_DIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_DIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_TIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_TIP}};
+
+                            constexpr uint32_t const internal_media_pipe_left_mappings[][2] = {
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_WRIST, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_WRIST},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_CMC, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_CMC},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_MCP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_MCP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_IP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_IP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_TIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_TIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_MCP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_MCP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_PIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_PIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_DIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_DIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_TIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_TIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_MCP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_MCP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_PIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_PIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_DIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_DIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_TIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_TIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_MCP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_MCP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_PIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_PIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_DIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_DIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_TIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_TIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_MCP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_MCP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_PIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_PIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_DIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_DIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_TIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_TIP}};
+
+                            constexpr uint32_t const mapping_count = sizeof(internal_media_pipe_right_mappings) / sizeof(internal_media_pipe_right_mappings[0]);
+                            static_assert((sizeof(internal_media_pipe_left_mappings) / sizeof(internal_media_pipe_left_mappings[0])) == mapping_count, "");
+
+                            uint32_t const(*const internal_media_pipe_mappings)[2] = handedness_right ? internal_media_pipe_right_mappings : internal_media_pipe_left_mappings;
+
+                            static_assert(INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT == (2U * mapping_count), "");
+
+                            for (uint32_t mapping_index = 0U; mapping_index < mapping_count; ++mapping_index)
+                            {
+                                uint32_t const position_index = internal_media_pipe_mappings[mapping_index][0];
+                                uint32_t const skeleton_joint_index = internal_media_pipe_mappings[mapping_index][1];
+
+                                DirectX::XMStoreFloat3(&hand_skeleton_joint_translations_model_space[skeleton_joint_index], DirectX::XMVector3TransformCoord(DirectX::XMLoadFloat3(&media_pipe_positions[position_index]), simd_media_pipe_to_gltf));
+                                hand_skeleton_joint_translations_model_space_valid[skeleton_joint_index] = media_pipe_positions_valid[position_index];
+                            }
+                        }
+                        else
+                        {
+                            assert(false);
+                        }
+                    }
+
+                    assert(hand_landmarker_result.handedness_count == (right_hand_index + left_hand_index));
+                    assert(hand_landmarker_result.hand_world_landmarks_count == (right_hand_index + left_hand_index));
+                    assert((right_hand_index + left_hand_index) <= (2U * this->m_hand_count));
+                }
+
+                if (this->m_enable_debug_renderer)
+                {
+                    cv::Scalar const debug_renderer_hand_color(0, 0, 255);
+
+                    for (uint32_t both_hand_index = 0U; both_hand_index < (2U * this->m_hand_count) && both_hand_index < hand_landmarker_result.hand_landmarks_count; ++both_hand_index)
+                    {
+                        NormalizedLandmarks const &hand_landmark = hand_landmarker_result.hand_landmarks[both_hand_index];
+
+                        assert(INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_COUNT == hand_landmark.landmarks_count);
+
+                        constexpr uint32_t const internal_media_pipe_bones[][2] = {
+                            //
+                            {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_WRIST, INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_CMC},
+                            {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_CMC, INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_MCP},
+                            {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_MCP, INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_IP},
+                            {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_IP, INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_TIP},
+                            //
+                            {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_WRIST, INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_MCP},
+                            {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_MCP, INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_PIP},
+                            {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_PIP, INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_DIP},
+                            {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_DIP, INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_TIP},
+                            //
+                            {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_WRIST, INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_MCP},
+                            {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_MCP, INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_PIP},
+                            {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_PIP, INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_DIP},
+                            {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_DIP, INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_TIP},
+                            //
+                            {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_WRIST, INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_MCP},
+                            {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_MCP, INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_PIP},
+                            {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_PIP, INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_DIP},
+                            {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_DIP, INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_TIP},
+                            //
+                            {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_WRIST, INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_MCP},
+                            {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_MCP, INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_PIP},
+                            {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_PIP, INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_DIP},
+                            {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_DIP, INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_TIP}};
+
+                        constexpr uint32_t const bone_count = sizeof(internal_media_pipe_bones) / sizeof(internal_media_pipe_bones[0]);
+
+                        for (uint32_t bone_index = 0U; bone_index < bone_count; ++bone_index)
+                        {
+                            uint32_t const begin_joint_landmark_index = internal_media_pipe_bones[bone_index][0];
+                            uint32_t const end_joint_landmark_index = internal_media_pipe_bones[bone_index][1];
+
+                            if ((begin_joint_landmark_index < hand_landmark.landmarks_count) && (end_joint_landmark_index < hand_landmark.landmarks_count))
+                            {
+                                NormalizedLandmark const &begin_normalized_landmark = hand_landmark.landmarks[begin_joint_landmark_index];
+
+                                NormalizedLandmark const &end_normalized_landmark = hand_landmark.landmarks[end_joint_landmark_index];
+
+                                if (((!begin_normalized_landmark.has_visibility) || (begin_normalized_landmark.visibility > 0.5F)) && ((!begin_normalized_landmark.has_presence) || (begin_normalized_landmark.presence > 0.5F)) && ((!end_normalized_landmark.has_visibility) || (end_normalized_landmark.visibility > 0.5F)) && ((!end_normalized_landmark.has_presence) || (end_normalized_landmark.presence > 0.5F)))
+                                {
+                                    cv::Point const parent_point(static_cast<int>(begin_normalized_landmark.x * debug_renderer_output_image.cols), static_cast<int>(begin_normalized_landmark.y * debug_renderer_output_image.rows));
+
+                                    cv::Point const end_point(static_cast<int>(end_normalized_landmark.x * debug_renderer_output_image.cols), static_cast<int>(end_normalized_landmark.y * debug_renderer_output_image.rows));
+
+                                    cv::line(debug_renderer_output_image, parent_point, end_point, debug_renderer_hand_color);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                assert(0 == this->m_hand_count);
+            }
+
+            // Face Landmarker
+
             if ((this->m_face_count > 0U) && (0 == status_face_landmarker_detect_for_video))
             {
                 assert(face_landmarker_result.face_blendshapes_count <= this->m_face_count);
@@ -689,18 +1195,18 @@ void brx_motion_media_pipe_video_detector::step()
                 {
                     Categories const &face_blendshape = face_landmarker_result.face_blendshapes[face_index];
 
-                    static_assert(INTERNAL_MEDIA_PIPE_WEIGHT_NAME_COUNT == (sizeof(internal_media_pipe_weight_name_strings) / sizeof(internal_media_pipe_weight_name_strings[0])), "");
+                    static_assert(INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_COUNT == (sizeof(internal_media_pipe_face_weight_name_strings) / sizeof(internal_media_pipe_face_weight_name_strings[0])), "");
 
                     // initialize "0.0F"
-                    float media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_COUNT] = {};
+                    float media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_COUNT] = {};
 
-                    assert(INTERNAL_MEDIA_PIPE_WEIGHT_NAME_COUNT == face_blendshape.categories_count);
+                    assert(INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_COUNT == face_blendshape.categories_count);
 
                     for (uint32_t blend_shape_index = 0U; blend_shape_index < face_blendshape.categories_count; ++blend_shape_index)
                     {
                         Category const &category = face_blendshape.categories[blend_shape_index];
 
-                        assert(0 == std::strcmp(category.category_name, internal_media_pipe_weight_name_strings[blend_shape_index]));
+                        assert(0 == std::strcmp(category.category_name, internal_media_pipe_face_weight_name_strings[blend_shape_index]));
 
                         media_pipe_weights[blend_shape_index] = category.score;
                     }
@@ -716,71 +1222,71 @@ void brx_motion_media_pipe_video_detector::step()
 
                     // TODO: optimize the mapping from medie pipe to mmd
 
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_BROW_DOWN_LEFT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_BROW_DOWN_LEFT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_BROW_DOWN_LEFT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_BROW_DOWN_LEFT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_BROW_DOWN_LEFT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_BROW_DOWN_LEFT] * 0.5F);
 
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_BROW_DOWN_RIGHT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_BROW_DOWN_RIGHT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_BROW_DOWN_RIGHT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_BROW_DOWN_RIGHT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_BROW_DOWN_RIGHT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_BROW_DOWN_RIGHT] * 0.5F);
 
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_CHEEK_SQUINT_LEFT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_CHEEK_SQUINT_LEFT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_CHEEK_SQUINT_LEFT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_CHEEK_SQUINT_LEFT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_CHEEK_SQUINT_LEFT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_CHEEK_SQUINT_LEFT] * 0.5F);
 
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_CHEEK_SQUINT_RIGHT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_CHEEK_SQUINT_RIGHT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_CHEEK_SQUINT_RIGHT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_CHEEK_SQUINT_RIGHT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_CHEEK_SQUINT_RIGHT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_CHEEK_SQUINT_RIGHT] * 0.5F);
 
                     // TODO: optimize the remapping
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_BLINK_L] += std::max(0.0F, media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_BLINK_LEFT] - 0.125F) * (1.0F / (1.0F - 0.125F));
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_BLINK_R] += std::max(0.0F, media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_BLINK_RIGHT] - 0.125F) * (1.0F / (1.0F - 0.125F));
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_BLINK_L] += std::max(0.0F, media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_BLINK_LEFT] - 0.125F) * (1.0F / (1.0F - 0.125F));
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_BLINK_R] += std::max(0.0F, media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_BLINK_RIGHT] - 0.125F) * (1.0F / (1.0F - 0.125F));
 
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_SQUINT_LEFT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_SQUINT_LEFT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_SQUINT_LEFT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_SQUINT_LEFT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_SQUINT_LEFT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_SQUINT_LEFT] * 0.5F);
 
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_SQUINT_RIGHT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_SQUINT_RIGHT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_SQUINT_RIGHT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_SQUINT_RIGHT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_SQUINT_RIGHT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_SQUINT_RIGHT] * 0.5F);
 
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_SURPRISED] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_WIDE_LEFT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_SURPRISED] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_WIDE_LEFT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_SURPRISED] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_WIDE_LEFT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_SURPRISED] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_WIDE_LEFT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_SURPRISED] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_WIDE_LEFT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_SURPRISED] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_WIDE_LEFT] * 0.5F);
 
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_SURPRISED] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_WIDE_RIGHT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_SURPRISED] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_WIDE_RIGHT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_SURPRISED] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_WIDE_RIGHT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_SURPRISED] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_WIDE_RIGHT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_SURPRISED] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_WIDE_RIGHT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_SURPRISED] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_WIDE_RIGHT] * 0.5F);
 
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_A] += media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_JAW_OPEN];
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_A] += media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_JAW_OPEN];
 
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_O] += media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_FUNNEL];
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_O] += media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_FUNNEL];
 
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_U] += media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_PUCKER];
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_U] += media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_PUCKER];
 
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_SMILE_LEFT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_SMILE_LEFT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_SMILE_LEFT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_SMILE_LEFT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_SMILE_LEFT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_SMILE_LEFT] * 0.5F);
 
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_SMILE_RIGHT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_SMILE_RIGHT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_SMILE_RIGHT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_SMILE_RIGHT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_SMILE_RIGHT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_HAPPY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_SMILE_RIGHT] * 0.5F);
 
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_I] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_STRETCH_LEFT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_I] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_STRETCH_LEFT] * 0.5F);
 
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_I] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_STRETCH_RIGHT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_I] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_STRETCH_RIGHT] * 0.5F);
 
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_E] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_UPPER_UP_LEFT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_E] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_UPPER_UP_LEFT] * 0.5F);
 
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_E] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_UPPER_UP_RIGHT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_E] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_UPPER_UP_RIGHT] * 0.5F);
 
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_NOSE_SNEER_LEFT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_NOSE_SNEER_LEFT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_NOSE_SNEER_LEFT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_NOSE_SNEER_LEFT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_NOSE_SNEER_LEFT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_NOSE_SNEER_LEFT] * 0.5F);
 
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_NOSE_SNEER_RIGHT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_NOSE_SNEER_RIGHT] * 0.5F);
-                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_MOUTH_NOSE_SNEER_RIGHT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_BROW_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_NOSE_SNEER_RIGHT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_EYE_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_NOSE_SNEER_RIGHT] * 0.5F);
+                    face_morph_target_weights[BRX_MOTION_MORPH_TARGET_NAME_MMD_MOUTH_ANGRY] += (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_MOUTH_NOSE_SNEER_RIGHT] * 0.5F);
 
                     for (uint32_t morph_target_name_index = 0U; morph_target_name_index < BRX_MOTION_MORPH_TARGET_NAME_MMD_COUNT; ++morph_target_name_index)
                     {
@@ -820,32 +1326,32 @@ void brx_motion_media_pipe_video_detector::step()
                         // right eye
                         {
                             DirectX::XMVECTOR right_eye_vertical_rotation;
-                            if (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_UP_RIGHT] > media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_DOWN_RIGHT])
+                            if (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_UP_RIGHT] > media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_DOWN_RIGHT])
                             {
-                                float const weight = (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_UP_RIGHT] - media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_DOWN_RIGHT]);
+                                float const weight = (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_UP_RIGHT] - media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_DOWN_RIGHT]);
                                 assert(weight >= 0.0F);
 
                                 right_eye_vertical_rotation = DirectX::XMQuaternionSlerp(DirectX::XMQuaternionIdentity(), eye_rotation_up, std::min(weight * INTERNAL_EYE_WEIGHT_SCALE, INTERNAL_EYE_WEIGHT_MAXIMUM));
                             }
                             else
                             {
-                                float const weight = (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_DOWN_RIGHT] - media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_UP_RIGHT]);
+                                float const weight = (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_DOWN_RIGHT] - media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_UP_RIGHT]);
                                 assert(weight >= 0.0F);
 
                                 right_eye_vertical_rotation = DirectX::XMQuaternionSlerp(DirectX::XMQuaternionIdentity(), eye_rotation_down, std::min(weight * INTERNAL_EYE_WEIGHT_SCALE, INTERNAL_EYE_WEIGHT_MAXIMUM));
                             }
 
                             DirectX::XMVECTOR right_eye_horizontal_rotation;
-                            if (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_IN_RIGHT] > media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_OUT_RIGHT])
+                            if (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_IN_RIGHT] > media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_OUT_RIGHT])
                             {
-                                float const weight = (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_IN_RIGHT] - media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_OUT_RIGHT]);
+                                float const weight = (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_IN_RIGHT] - media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_OUT_RIGHT]);
                                 assert(weight >= 0.0F);
 
                                 right_eye_horizontal_rotation = DirectX::XMQuaternionSlerp(DirectX::XMQuaternionIdentity(), eye_rotation_left, std::min(weight * INTERNAL_EYE_WEIGHT_SCALE, INTERNAL_EYE_WEIGHT_MAXIMUM));
                             }
                             else
                             {
-                                float const weight = (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_OUT_RIGHT] - media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_IN_RIGHT]);
+                                float const weight = (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_OUT_RIGHT] - media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_IN_RIGHT]);
                                 assert(weight >= 0.0F);
 
                                 right_eye_horizontal_rotation = DirectX::XMQuaternionSlerp(DirectX::XMQuaternionIdentity(), eye_rotation_right, std::min(weight * INTERNAL_EYE_WEIGHT_SCALE, INTERNAL_EYE_WEIGHT_MAXIMUM));
@@ -857,32 +1363,32 @@ void brx_motion_media_pipe_video_detector::step()
                         // left eye
                         {
                             DirectX::XMVECTOR left_eye_vertical_rotation;
-                            if (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_UP_LEFT] > media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_DOWN_LEFT])
+                            if (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_UP_LEFT] > media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_DOWN_LEFT])
                             {
-                                float const weight = (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_UP_LEFT] - media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_DOWN_LEFT]);
+                                float const weight = (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_UP_LEFT] - media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_DOWN_LEFT]);
                                 assert(weight >= 0.0F);
 
                                 left_eye_vertical_rotation = DirectX::XMQuaternionSlerp(DirectX::XMQuaternionIdentity(), eye_rotation_up, std::min(weight * INTERNAL_EYE_WEIGHT_SCALE, INTERNAL_EYE_WEIGHT_MAXIMUM));
                             }
                             else
                             {
-                                float const weight = (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_DOWN_LEFT] - media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_UP_LEFT]);
+                                float const weight = (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_DOWN_LEFT] - media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_UP_LEFT]);
                                 assert(weight >= 0.0F);
 
                                 left_eye_vertical_rotation = DirectX::XMQuaternionSlerp(DirectX::XMQuaternionIdentity(), eye_rotation_down, std::min(weight * INTERNAL_EYE_WEIGHT_SCALE, INTERNAL_EYE_WEIGHT_MAXIMUM));
                             }
 
                             DirectX::XMVECTOR left_eye_horizontal_rotation;
-                            if (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_IN_LEFT] > media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_OUT_LEFT])
+                            if (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_IN_LEFT] > media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_OUT_LEFT])
                             {
-                                float const weight = (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_IN_LEFT] - media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_OUT_LEFT]);
+                                float const weight = (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_IN_LEFT] - media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_OUT_LEFT]);
                                 assert(weight >= 0.0F);
 
                                 left_eye_horizontal_rotation = DirectX::XMQuaternionSlerp(DirectX::XMQuaternionIdentity(), eye_rotation_right, std::min(weight * INTERNAL_EYE_WEIGHT_SCALE, INTERNAL_EYE_WEIGHT_MAXIMUM));
                             }
                             else
                             {
-                                float const weight = (media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_OUT_LEFT] - media_pipe_weights[INTERNAL_MEDIA_PIPE_WEIGHT_NAME_EYE_LOOK_IN_LEFT]);
+                                float const weight = (media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_OUT_LEFT] - media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_IN_LEFT]);
                                 assert(weight >= 0.0F);
 
                                 left_eye_horizontal_rotation = DirectX::XMQuaternionSlerp(DirectX::XMQuaternionIdentity(), eye_rotation_left, std::min(weight * INTERNAL_EYE_WEIGHT_SCALE, INTERNAL_EYE_WEIGHT_MAXIMUM));
@@ -988,18 +1494,41 @@ void brx_motion_media_pipe_video_detector::step()
                     }
                 }
             }
+            else
+            {
+                assert(0 == this->m_face_count);
+            }
+
+            // Pose Landmarker
+
+            for (uint32_t pose_index = 0U; pose_index < this->m_pose_count; ++pose_index)
+            {
+                std::array<bool, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT> &pose_skeleton_joint_translations_model_space_valid = this->m_poses_skeleton_joint_translations_model_space_valid[pose_index];
+                for (uint32_t pose_skeleton_joint_name_index = 0U; pose_skeleton_joint_name_index < INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT; ++pose_skeleton_joint_name_index)
+                {
+                    pose_skeleton_joint_translations_model_space_valid[pose_skeleton_joint_name_index] = false;
+                }
+            }
 
             if ((this->m_pose_count > 0U) && (0 == status_pose_landmarker_detect_for_video))
             {
+                assert(pose_landmarker_result.pose_world_landmarks_count <= this->m_pose_count);
+
                 for (uint32_t pose_index = 0U; pose_index < this->m_pose_count && pose_index < pose_landmarker_result.pose_world_landmarks_count; ++pose_index)
                 {
                     Landmarks const &pose_world_landmark = pose_landmarker_result.pose_world_landmarks[pose_index];
 
-                    DirectX::XMFLOAT3 media_pipe_positions[INTERNAL_MEIDA_PIPE_POSITION_NAME_COUNT];
+                    DirectX::XMFLOAT3 media_pipe_positions[INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_COUNT];
                     // initialize "false"
-                    bool media_pipe_positions_valid[INTERNAL_MEIDA_PIPE_POSITION_NAME_COUNT] = {};
+                    bool media_pipe_positions_valid[INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_COUNT] = {};
+#ifndef NDEBUG
+                    for (uint32_t pose_position_name_index = 0U; pose_position_name_index < INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_COUNT; ++pose_position_name_index)
+                    {
+                        assert(!media_pipe_positions_valid[pose_position_name_index]);
+                    }
+#endif
 
-                    assert(INTERNAL_MEIDA_PIPE_POSITION_NAME_COUNT == pose_world_landmark.landmarks_count);
+                    assert(INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_COUNT == pose_world_landmark.landmarks_count);
 
                     for (uint32_t world_landmark_index = 0U; world_landmark_index < pose_world_landmark.landmarks_count; ++world_landmark_index)
                     {
@@ -1040,24 +1569,30 @@ void brx_motion_media_pipe_video_detector::step()
                     DirectX::XMMATRIX simd_media_pipe_to_gltf = DirectX::XMLoadFloat4x4(&media_pipe_to_gltf);
 
                     constexpr uint32_t const internal_media_pipe_mappings[][2] = {
-                        {INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_SHOULDER, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_ARM},
-                        {INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_ELBOW, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_ELBOW},
-                        {INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_WRIST, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_WRIST},
-                        {INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_INDEX, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_INDEX},
-                        {INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_HIP, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_LEG},
-                        {INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_KNEE, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_KNEE},
-                        {INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_ANKLE, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_ANKLE},
-                        {INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_FOOT, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_TOE_TIP},
-                        {INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_SHOULDER, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_ARM},
-                        {INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_ELBOW, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_ELBOW},
-                        {INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_WRIST, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_WRIST},
-                        {INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_INDEX, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_INDEX},
-                        {INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_HIP, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_LEG},
-                        {INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_KNEE, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_KNEE},
-                        {INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_ANKLE, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_ANKLE},
-                        {INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_FOOT, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_TOE_TIP}};
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_SHOULDER, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_ARM},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_ELBOW, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_ELBOW},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_WRIST, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_WRIST},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_THUMB, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_THUMB},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_INDEX, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_INDEX},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_PINKY, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_PINKY},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_HIP, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_LEG},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_KNEE, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_KNEE},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_ANKLE, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_ANKLE},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_FOOT, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_TOE_TIP},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_SHOULDER, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_ARM},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_ELBOW, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_ELBOW},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_WRIST, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_WRIST},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_THUMB, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_THUMB},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_INDEX, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_INDEX},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_PINKY, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_PINKY},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_HIP, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_LEG},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_KNEE, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_KNEE},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_ANKLE, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_ANKLE},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_FOOT, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_TOE_TIP}};
 
                     constexpr uint32_t const mapping_count = sizeof(internal_media_pipe_mappings) / sizeof(internal_media_pipe_mappings[0]);
+
+                    static_assert(INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT == (mapping_count + 2), "");
 
                     for (uint32_t mapping_index = 0U; mapping_index < mapping_count; ++mapping_index)
                     {
@@ -1068,11 +1603,9 @@ void brx_motion_media_pipe_video_detector::step()
                         pose_skeleton_joint_translations_model_space_valid[skeleton_joint_index] = media_pipe_positions_valid[position_index];
                     }
 
-                    static_assert(INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT == (mapping_count + 2), "");
-
-                    if (media_pipe_positions_valid[INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_HIP] && media_pipe_positions_valid[INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_HIP])
+                    if (media_pipe_positions_valid[INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_HIP] && media_pipe_positions_valid[INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_HIP])
                     {
-                        DirectX::XMStoreFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LOWER_BODY], DirectX::XMVectorScale(DirectX::XMVectorAdd(DirectX::XMVector3TransformCoord(DirectX::XMLoadFloat3(&media_pipe_positions[INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_HIP]), simd_media_pipe_to_gltf), DirectX::XMVector3TransformCoord(DirectX::XMLoadFloat3(&media_pipe_positions[INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_HIP]), simd_media_pipe_to_gltf)), 0.5F));
+                        DirectX::XMStoreFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LOWER_BODY], DirectX::XMVectorScale(DirectX::XMVectorAdd(DirectX::XMVector3TransformCoord(DirectX::XMLoadFloat3(&media_pipe_positions[INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_HIP]), simd_media_pipe_to_gltf), DirectX::XMVector3TransformCoord(DirectX::XMLoadFloat3(&media_pipe_positions[INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_HIP]), simd_media_pipe_to_gltf)), 0.5F));
 
                         pose_skeleton_joint_translations_model_space_valid[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LOWER_BODY] = true;
                     }
@@ -1103,33 +1636,33 @@ void brx_motion_media_pipe_video_detector::step()
                     {
                         NormalizedLandmarks const &pose_landmark = pose_landmarker_result.pose_landmarks[pose_index];
 
-                        assert(INTERNAL_MEIDA_PIPE_POSITION_NAME_COUNT == pose_landmark.landmarks_count);
+                        assert(INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_COUNT == pose_landmark.landmarks_count);
 
                         constexpr uint32_t const internal_media_pipe_bones[][2] = {
                             //
-                            {INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_SHOULDER, INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_SHOULDER},
+                            {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_SHOULDER, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_SHOULDER},
                             //
-                            {INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_SHOULDER, INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_ELBOW},
-                            {INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_ELBOW, INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_WRIST},
-                            {INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_WRIST, INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_THUMB},
-                            {INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_WRIST, INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_INDEX},
-                            {INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_WRIST, INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_PINKY},
+                            {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_SHOULDER, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_ELBOW},
+                            {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_ELBOW, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_WRIST},
+                            {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_WRIST, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_THUMB},
+                            {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_WRIST, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_INDEX},
+                            {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_WRIST, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_PINKY},
                             //
-                            {INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_SHOULDER, INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_ELBOW},
-                            {INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_ELBOW, INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_WRIST},
-                            {INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_WRIST, INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_THUMB},
-                            {INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_WRIST, INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_INDEX},
-                            {INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_WRIST, INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_PINKY},
+                            {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_SHOULDER, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_ELBOW},
+                            {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_ELBOW, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_WRIST},
+                            {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_WRIST, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_THUMB},
+                            {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_WRIST, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_INDEX},
+                            {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_WRIST, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_PINKY},
                             //
-                            {INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_HIP, INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_HIP},
+                            {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_HIP, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_HIP},
                             //
-                            {INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_HIP, INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_KNEE},
-                            {INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_KNEE, INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_ANKLE},
-                            {INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_ANKLE, INTERNAL_MEIDA_PIPE_POSITION_NAME_RIGHT_FOOT},
+                            {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_HIP, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_KNEE},
+                            {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_KNEE, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_ANKLE},
+                            {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_ANKLE, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_FOOT},
                             //
-                            {INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_HIP, INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_KNEE},
-                            {INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_KNEE, INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_ANKLE},
-                            {INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_ANKLE, INTERNAL_MEIDA_PIPE_POSITION_NAME_LEFT_FOOT}};
+                            {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_HIP, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_KNEE},
+                            {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_KNEE, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_ANKLE},
+                            {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_ANKLE, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_FOOT}};
 
                         constexpr uint32_t const bone_count = sizeof(internal_media_pipe_bones) / sizeof(internal_media_pipe_bones[0]);
 
@@ -1156,6 +1689,10 @@ void brx_motion_media_pipe_video_detector::step()
                         }
                     }
                 }
+            }
+            else
+            {
+                assert(0 == this->m_pose_count);
             }
 
             if (this->m_enable_debug_renderer)
@@ -1199,6 +1736,11 @@ void brx_motion_media_pipe_video_detector::step()
         }
 
         // should we still close the result when fail?
+        if (this->m_hand_count > 0U)
+        {
+            hand_landmarker_close_result(&hand_landmarker_result);
+        }
+
         if (this->m_face_count > 0U)
         {
             face_landmarker_close_result(&face_landmarker_result);
@@ -1227,6 +1769,44 @@ float brx_motion_media_pipe_video_detector::get_morph_target_weight(uint32_t fac
     else
     {
         return 0.0F;
+    }
+}
+
+DirectX::XMFLOAT3 const *brx_motion_media_pipe_video_detector::get_hand_skeleton_joint_translation(uint32_t hand_index, BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name) const
+{
+    if (hand_index < this->m_hand_count)
+    {
+        assert(hand_index < this->m_hands_skeleton_joint_translations_model_space.size());
+        assert(this->m_hand_count == this->m_hands_skeleton_joint_translations_model_space.size());
+        assert(hand_index < this->m_hands_skeleton_joint_translations_model_space_valid.size());
+        assert(this->m_hand_count == this->m_hands_skeleton_joint_translations_model_space_valid.size());
+        std::array<DirectX::XMFLOAT3, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT> const &hand_skeleton_joint_translations_model_space = this->m_hands_skeleton_joint_translations_model_space[hand_index];
+        std::array<bool, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT> const &hand_skeleton_joint_translations_model_space_valid = this->m_hands_skeleton_joint_translations_model_space_valid[hand_index];
+
+        assert((BRX_MOTION_SKELETON_JOINT_NAME_INVALID == skeleton_joint_name) || (skeleton_joint_name < BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT));
+        uint32_t const hand_skeleton_joint_index = internal_get_hand_skeleton_joint_index(skeleton_joint_name);
+
+        if (BRX_MOTION_UINT32_INDEX_INVALID != hand_skeleton_joint_index)
+        {
+            assert(hand_skeleton_joint_index < INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT);
+            if (hand_skeleton_joint_translations_model_space_valid[hand_skeleton_joint_index])
+            {
+                return &hand_skeleton_joint_translations_model_space[hand_skeleton_joint_index];
+            }
+            else
+            {
+                return NULL;
+            }
+        }
+        else
+        {
+            return NULL;
+        }
+    }
+    else
+    {
+        assert(false);
+        return NULL;
     }
 }
 
@@ -1296,6 +1876,272 @@ DirectX::XMFLOAT3 const *brx_motion_media_pipe_video_detector::get_pose_skeleton
     }
 }
 
+static inline uint32_t internal_get_hand_skeleton_joint_index(BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name)
+{
+    uint32_t hand_skeleton_joint_index;
+    switch (skeleton_joint_name)
+    {
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_WRIST:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_WRIST == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_WRIST;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_THUMB_0:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_THUMB_0 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_CMC;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_THUMB_1:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_THUMB_1 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_MCP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_THUMB_2:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_THUMB_2 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_IP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_THUMB_TIP:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_THUMB_TIP == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_TIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_INDEX_FINGER_1:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_INDEX_FINGER_1 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_MCP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_INDEX_FINGER_2:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_INDEX_FINGER_2 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_PIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_INDEX_FINGER_3:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_INDEX_FINGER_3 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_DIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_INDEX_FINGER_TIP:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_INDEX_FINGER_TIP == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_TIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_MIDDLE_FINGER_1:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_MIDDLE_FINGER_1 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_MCP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_MIDDLE_FINGER_2:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_MIDDLE_FINGER_2 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_PIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_MIDDLE_FINGER_3:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_MIDDLE_FINGER_3 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_DIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_MIDDLE_FINGER_TIP:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_MIDDLE_FINGER_TIP == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_TIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_RING_FINGER_1:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_RING_FINGER_1 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_MCP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_RING_FINGER_2:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_RING_FINGER_2 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_PIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_RING_FINGER_3:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_RING_FINGER_3 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_DIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_RING_FINGER_TIP:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_RING_FINGER_TIP == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_TIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LITTLE_FINGER_1:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LITTLE_FINGER_1 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_MCP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LITTLE_FINGER_2:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LITTLE_FINGER_2 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_PIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LITTLE_FINGER_3:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LITTLE_FINGER_3 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_DIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LITTLE_FINGER_TIP:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LITTLE_FINGER_TIP == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_TIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_WRIST:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_WRIST == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_WRIST;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_THUMB_0:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_THUMB_0 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_CMC;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_THUMB_1:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_THUMB_1 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_MCP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_THUMB_2:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_THUMB_2 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_IP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_THUMB_TIP:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_THUMB_TIP == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_TIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_INDEX_FINGER_1:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_INDEX_FINGER_1 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_MCP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_INDEX_FINGER_2:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_INDEX_FINGER_2 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_PIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_INDEX_FINGER_3:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_INDEX_FINGER_3 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_DIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_INDEX_FINGER_TIP:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_INDEX_FINGER_TIP == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_TIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_MIDDLE_FINGER_1:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_MIDDLE_FINGER_1 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_MCP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_MIDDLE_FINGER_2:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_MIDDLE_FINGER_2 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_PIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_MIDDLE_FINGER_3:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_MIDDLE_FINGER_3 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_DIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_MIDDLE_FINGER_TIP:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_MIDDLE_FINGER_TIP == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_TIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_RING_FINGER_1:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_RING_FINGER_1 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_MCP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_RING_FINGER_2:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_RING_FINGER_2 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_PIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_RING_FINGER_3:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_RING_FINGER_3 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_DIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_RING_FINGER_TIP:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_RING_FINGER_TIP == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_TIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LITTLE_FINGER_1:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LITTLE_FINGER_1 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_MCP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LITTLE_FINGER_2:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LITTLE_FINGER_2 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_PIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LITTLE_FINGER_3:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LITTLE_FINGER_3 == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_DIP;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LITTLE_FINGER_TIP:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LITTLE_FINGER_TIP == skeleton_joint_name);
+        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_TIP;
+    }
+    break;
+    default:
+    {
+        assert(false);
+        hand_skeleton_joint_index = BRX_MOTION_UINT32_INDEX_INVALID;
+    }
+    }
+    return hand_skeleton_joint_index;
+}
+
 static inline uint32_t internal_get_face_skeleton_joint_index(BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name)
 {
     uint32_t face_skeleton_joint_index;
@@ -1357,10 +2203,22 @@ static inline uint32_t internal_get_pose_skeleton_joint_index(BRX_MOTION_SKELETO
         pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_WRIST;
     }
     break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_THUMB_0:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_THUMB_0 == skeleton_joint_name);
+        pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_THUMB;
+    }
+    break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_INDEX_FINGER_1:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_INDEX_FINGER_1 == skeleton_joint_name);
         pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_INDEX;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LITTLE_FINGER_1:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LITTLE_FINGER_1 == skeleton_joint_name);
+        pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_PINKY;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ARM:
@@ -1381,10 +2239,22 @@ static inline uint32_t internal_get_pose_skeleton_joint_index(BRX_MOTION_SKELETO
         pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_WRIST;
     }
     break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_THUMB_0:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_THUMB_0 == skeleton_joint_name);
+        pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_THUMB;
+    }
+    break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_INDEX_FINGER_1:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_INDEX_FINGER_1 == skeleton_joint_name);
         pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_INDEX;
+    }
+    break;
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LITTLE_FINGER_1:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LITTLE_FINGER_1 == skeleton_joint_name);
+        pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_PINKY;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LOWER_BODY:

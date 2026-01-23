@@ -17,6 +17,8 @@
 
 {
     global:
+        brx_motion_mediapipe_model_asset_get_hand_landmarker_task_base;
+        brx_motion_mediapipe_model_asset_get_hand_landmarker_task_size;
         brx_motion_mediapipe_model_asset_get_face_landmarker_task_base;
         brx_motion_mediapipe_model_asset_get_face_landmarker_task_size;
         brx_motion_mediapipe_model_asset_get_pose_landmarker_task_base;
