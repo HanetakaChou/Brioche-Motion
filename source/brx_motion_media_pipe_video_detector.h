@@ -37,21 +37,23 @@
 #endif
 #include <array>
 
-class brx_motion_media_pipe_video_detector final : public brx_motion_video_detector
+class brx_motion_media_pipe_video_detector final : public internal_brx_motion_video_detector
 {
 	uint32_t m_ref_count;
-	uint32_t m_hand_count;
-	uint32_t m_face_count;
 	uint32_t m_pose_count;
-	void *m_hand_landmarker;
-	void *m_face_landmarker;
+	uint32_t m_face_count;
+	uint32_t m_hand_count;
 	void *m_pose_landmarker;
-	mcrt_vector<std::array<bool, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT>> m_hands_skeleton_joint_translations_model_space_valid;
-	mcrt_vector<std::array<DirectX::XMFLOAT3, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT>> m_hands_skeleton_joint_translations_model_space;
-	mcrt_vector<std::array<float, BRX_MOTION_MORPH_TARGET_NAME_MMD_COUNT>> m_faces_morph_target_weights;
-	mcrt_vector<std::array<DirectX::XMFLOAT4, INTERNAL_VIDEO_DETECTOR_FACE_SKELETON_JOINT_NAME_COUNT>> m_faces_skeleton_joint_rotations;
+	void *m_face_landmarker;
+	void *m_hand_landmarker;
 	mcrt_vector<std::array<bool, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT>> m_poses_skeleton_joint_translations_model_space_valid;
 	mcrt_vector<std::array<DirectX::XMFLOAT3, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT>> m_poses_skeleton_joint_translations_model_space;
+	mcrt_vector<std::array<float, BRX_MOTION_MORPH_TARGET_NAME_MMD_COUNT>> m_faces_morph_target_weights;
+	mcrt_vector<std::array<DirectX::XMFLOAT4, INTERNAL_VIDEO_DETECTOR_FACE_MORPH_JOINT_NAME_COUNT>> m_faces_morph_joint_weights;
+	mcrt_vector<std::array<DirectX::XMFLOAT4, INTERNAL_VIDEO_DETECTOR_FACE_SKELETON_JOINT_NAME_COUNT>> m_faces_skeleton_joint_rotations;
+	mcrt_vector<std::array<bool, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT>> m_hands_skeleton_joint_translations_model_space_valid;
+	mcrt_vector<std::array<DirectX::XMFLOAT3, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT>> m_hands_skeleton_joint_translations_model_space;
+	double m_delta_time;
 	int64_t m_timestamp_ms;
 	bool m_enable_debug_renderer;
 	void *m_debug_renderer_window;
@@ -63,10 +65,11 @@ public:
 	~brx_motion_media_pipe_video_detector();
 	bool init(uint32_t hand_count, uint32_t face_count, uint32_t pose_count, bool force_gpu, brx_motion_video_capture const *video_capture);
 	void uninit();
-	inline void retain();
-	inline uint32_t internal_release();
 
 private:
+	inline void internal_retain();
+	inline uint32_t internal_release();
+
 	uint32_t get_hand_count() const override;
 	uint32_t get_face_count() const override;
 	uint32_t get_pose_count() const override;
@@ -77,10 +80,14 @@ private:
 	void step() override;
 	float get_morph_target_weight(uint32_t face_index, BRX_MOTION_MORPH_TARGET_NAME morph_target_name) const override;
 
-public:
-	DirectX::XMFLOAT3 const *get_hand_skeleton_joint_translation(uint32_t hand_index, BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name) const;
-	DirectX::XMFLOAT4 const *get_face_skeleton_joint_rotation(uint32_t face_index, BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name) const;
-	DirectX::XMFLOAT3 const *get_pose_skeleton_joint_translation(uint32_t pose_index, BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name) const;
+	double get_delta_time() const override;
+	DirectX::XMFLOAT4 const get_face_morph_joint_weight(uint32_t face_index, BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name) const override;
+	DirectX::XMFLOAT3 const *get_pose_skeleton_joint_translation(uint32_t pose_index, BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name) const override;
+	DirectX::XMFLOAT4 const *get_face_skeleton_joint_rotation(uint32_t face_index, BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name) const override;
+	DirectX::XMFLOAT3 const *get_hand_skeleton_joint_translation(uint32_t hand_index, BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name) const override;
+
+	void retain() override;
+	void release() override;
 };
 
 #endif
