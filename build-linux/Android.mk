@@ -69,7 +69,7 @@ LOCAL_CFLAGS += -Werror=return-type
 LOCAL_C_INCLUDES :=
 
 LOCAL_CPPFLAGS := 
-LOCAL_CPPFLAGS += -std=c++17
+LOCAL_CPPFLAGS += -std=c++20
 
 LOCAL_LDFLAGS :=
 LOCAL_LDFLAGS += -Wl,--enable-new-dtags
@@ -132,7 +132,7 @@ LOCAL_C_INCLUDES += $(LOCAL_PATH)/../thirdparty/mediapipe/include
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../thirdparty/OpenCL-Headers
 
 LOCAL_CPPFLAGS := 
-LOCAL_CPPFLAGS += -std=c++17
+LOCAL_CPPFLAGS += -std=c++20
 
 LOCAL_LDFLAGS :=
 LOCAL_LDFLAGS += -Wl,--enable-new-dtags

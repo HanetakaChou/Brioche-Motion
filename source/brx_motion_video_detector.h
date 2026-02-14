@@ -117,7 +117,7 @@ class internal_brx_motion_video_detector : public brx_motion_video_detector
 {
 public:
     virtual double get_delta_time() const = 0;
-    virtual DirectX::XMFLOAT4 const get_face_morph_joint_weight(uint32_t face_index, BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name) const = 0;
+    virtual DirectX::XMFLOAT4 get_face_morph_joint_weight(uint32_t face_index, BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name) const = 0;
     virtual DirectX::XMFLOAT3 const *get_pose_skeleton_joint_translation(uint32_t pose_index, BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name) const = 0;
     virtual DirectX::XMFLOAT4 const *get_face_skeleton_joint_rotation(uint32_t face_index, BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name) const = 0;
     virtual DirectX::XMFLOAT3 const *get_hand_skeleton_joint_translation(uint32_t hand_index, BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name) const = 0;

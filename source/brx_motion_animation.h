@@ -233,12 +233,19 @@ class brx_motion_animation_skeleton_instance final : public brx_motion_skeleton_
 	mcrt_vector<brx_physics_rigid_body *> m_physics_rigid_bodies;
 	mcrt_vector<brx_physics_constraint *> m_physics_constraints;
 
-	brx_motion_video_detector const *m_input_video_detector;
-	uint32_t m_input_hand_index;
-	uint32_t m_input_face_index;
-	uint32_t m_input_pose_index;
+	brx_motion_video_detector const *m_morph_input_video_detector;
+	uint32_t m_morph_input_pose_index;
+	uint32_t m_morph_input_face_index;
+	uint32_t m_morph_input_hand_index;
 
 	DirectX::XMFLOAT4 m_video_detector_face_morph_joint_rotations_local_space[INTERNAL_VIDEO_DETECTOR_FACE_MORPH_JOINT_NAME_COUNT];
+
+	brx_motion_animation_animation_instance const *m_morph_input_animation_instance;
+
+	brx_motion_video_detector const *m_joint_input_video_detector;
+	uint32_t m_joint_input_pose_index;
+	uint32_t m_joint_input_face_index;
+	uint32_t m_joint_input_hand_index;
 
 	bool m_video_detector_pose_skeleton_joint_translations_model_space_valid[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT];
 	DirectX::XMFLOAT3 m_video_detector_pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT];
@@ -250,9 +257,10 @@ class brx_motion_animation_skeleton_instance final : public brx_motion_skeleton_
 	DirectX::XMFLOAT3 m_video_detector_hand_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT];
 	DirectX::XMFLOAT4 m_video_detector_hand_skeleton_joint_rotations_local_space[32];
 
-	brx_motion_animation_animation_instance const *m_input_animation_instance;
+	brx_motion_animation_animation_instance const *m_joint_input_animation_instance;
 
-	bool m_input_continuous;
+	// only joint input can affect ragdoll
+	bool m_joint_input_continuous;
 
 public:
 	inline brx_motion_animation_skeleton_instance();
@@ -261,17 +269,28 @@ public:
 	inline void uninit();
 
 private:
-	inline void invalidate_input_video_detector();
-	void set_input_video_detector(brx_motion_video_detector const *video_detector) override;
-	void set_input_video_detector_hand_index(uint32_t hand_index) override;
-	void set_input_video_detector_face_index(uint32_t face_index) override;
-	void set_input_video_detector_pose_index(uint32_t pose_index) override;
-	void set_input_animation_instance(brx_motion_animation_instance const *animation_instance) override;
-	brx_motion_video_detector *get_input_video_detector() const override;
-	uint32_t get_input_video_detector_hand_index() const override;
-	uint32_t get_input_video_detector_face_index() const override;
-	uint32_t get_input_video_detector_pose_index() const override;
-	brx_motion_animation_instance *get_input_animation_instance() const override;
+	inline void invalidate_morph_input_video_detector();
+	inline void invalidate_joint_input_video_detector();
+	void set_morph_input_video_detector(brx_motion_video_detector const *video_detector) override;
+	void set_morph_input_video_detector_pose_index(uint32_t pose_index) override;
+	void set_morph_input_video_detector_face_index(uint32_t face_index) override;
+	void set_morph_input_video_detector_hand_index(uint32_t hand_index) override;
+	void set_morph_input_animation_instance(brx_motion_animation_instance const *animation_instance) override;
+	void set_joint_input_video_detector(brx_motion_video_detector const *video_detector) override;
+	void set_joint_input_video_detector_pose_index(uint32_t pose_index) override;
+	void set_joint_input_video_detector_face_index(uint32_t face_index) override;
+	void set_joint_input_video_detector_hand_index(uint32_t hand_index) override;
+	void set_joint_input_animation_instance(brx_motion_animation_instance const *animation_instance) override;
+	brx_motion_video_detector *get_morph_input_video_detector() const override;
+	uint32_t get_morph_input_video_detector_pose_index() const override;
+	uint32_t get_morph_input_video_detector_face_index() const override;
+	uint32_t get_morph_input_video_detector_hand_index() const override;
+	brx_motion_animation_instance *get_morph_input_animation_instance() const override;
+	brx_motion_video_detector *get_joint_input_video_detector() const override;
+	uint32_t get_joint_input_video_detector_pose_index() const override;
+	uint32_t get_joint_input_video_detector_face_index() const override;
+	uint32_t get_joint_input_video_detector_hand_index() const override;
+	brx_motion_animation_instance *get_joint_input_animation_instance() const override;
 	void step(BRX_MOTION_PHYSICS_RAGDOLL_QUALITY physics_ragdoll_quality) override;
 	inline void animation_skeleton_joint_constraint(mcrt_vector<DirectX::XMFLOAT4X4> const &animation_skeleton_bind_pose_local_space, mcrt_vector<DirectX::XMFLOAT4X4> &animation_skeleton_animation_pose_local_space);
 	inline void ragdoll(mcrt_vector<DirectX::XMFLOAT4X4> &animation_skeleton_animation_pose_model_space, float physics_delta_time, uint32_t physics_max_substep_count, float physics_substep_delta_time);

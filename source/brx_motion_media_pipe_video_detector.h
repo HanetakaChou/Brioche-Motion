@@ -63,7 +63,7 @@ class brx_motion_media_pipe_video_detector final : public internal_brx_motion_vi
 public:
 	brx_motion_media_pipe_video_detector();
 	~brx_motion_media_pipe_video_detector();
-	bool init(uint32_t hand_count, uint32_t face_count, uint32_t pose_count, bool force_gpu, brx_motion_video_capture const *video_capture);
+	bool init(uint32_t pose_count, uint32_t face_count, uint32_t hand_count, bool force_gpu, brx_motion_video_capture const *video_capture);
 	void uninit();
 
 private:
@@ -81,7 +81,7 @@ private:
 	float get_morph_target_weight(uint32_t face_index, BRX_MOTION_MORPH_TARGET_NAME morph_target_name) const override;
 
 	double get_delta_time() const override;
-	DirectX::XMFLOAT4 const get_face_morph_joint_weight(uint32_t face_index, BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name) const override;
+	DirectX::XMFLOAT4 get_face_morph_joint_weight(uint32_t face_index, BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name) const override;
 	DirectX::XMFLOAT3 const *get_pose_skeleton_joint_translation(uint32_t pose_index, BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name) const override;
 	DirectX::XMFLOAT4 const *get_face_skeleton_joint_rotation(uint32_t face_index, BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name) const override;
 	DirectX::XMFLOAT3 const *get_hand_skeleton_joint_translation(uint32_t hand_index, BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name) const override;
