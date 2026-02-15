@@ -10,3 +10,7 @@
 	path = thirdparty/OpenCL-Headers
 	url = git@github.com:BriochePuppet/OpenCL-Headers.git
 	branch = master
+[submodule "thirdpary/liblo"]
+	path = thirdpary/liblo
+	url = git@github.com:HanetakaChou/liblo.git
+	branch = master
