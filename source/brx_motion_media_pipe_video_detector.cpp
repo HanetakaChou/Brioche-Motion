@@ -37,6 +37,10 @@ static constexpr uint32_t const INTERNAL_MEIDA_PIPE_MAX_POSE_COUNT = 5U;
 static constexpr uint32_t const INTERNAL_MEIDA_PIPE_MAX_FACE_COUNT = 5U;
 static constexpr uint32_t const INTERNAL_MEIDA_PIPE_MAX_HAND_COUNT = 5U;
 
+static constexpr float const INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE = 0.25F;
+static constexpr float const INTERNAL_MEIDA_PIPE_MIN_FACE_CONFIDENCE = 0.25F;
+static constexpr float const INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE = 0.25F;
+
 // https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker#models
 enum
 {
@@ -249,7 +253,7 @@ extern "C" void brx_motion_destroy_video_detector(brx_motion_video_detector *wra
     release_unwrapped_video_detector->release();
 }
 
-brx_motion_media_pipe_video_detector::brx_motion_media_pipe_video_detector() : m_ref_count(0U), m_pose_count(0U), m_face_count(0U), m_hand_count(0U), m_pose_landmarker(NULL), m_face_landmarker(NULL), m_hand_landmarker(NULL), m_delta_time(0.0), m_timestamp_ms(0), m_enable_debug_renderer(false), m_debug_renderer_window(NULL), m_input_video_capture(NULL)
+brx_motion_media_pipe_video_detector::brx_motion_media_pipe_video_detector() : m_ref_count(0U), m_pose_count(0U), m_face_count(0U), m_hand_count(0U), m_pose_landmarker(NULL), m_face_landmarker(NULL), m_hand_landmarker(NULL), m_delta_time(0.0), m_timestamp_ms(0), m_enable_debug_renderer(false), m_debug_renderer_window_original(NULL), m_debug_renderer_window_modified(NULL), m_input_video_capture(NULL)
 {
 }
 
@@ -307,6 +311,9 @@ bool brx_motion_media_pipe_video_detector::init(uint32_t pose_count, uint32_t fa
             options.base_options.model_asset_path = NULL;
             options.running_mode = VIDEO;
             options.num_poses = static_cast<int>(this->m_pose_count);
+            options.min_pose_detection_confidence = INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE;
+            options.min_pose_presence_confidence = INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE;
+            options.min_tracking_confidence = INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE;
             options.output_segmentation_masks = false;
             options.result_callback = NULL;
 
@@ -350,6 +357,9 @@ bool brx_motion_media_pipe_video_detector::init(uint32_t pose_count, uint32_t fa
             options.base_options.model_asset_path = NULL;
             options.running_mode = VIDEO;
             options.num_faces = static_cast<int>(this->m_face_count);
+            options.min_face_detection_confidence = INTERNAL_MEIDA_PIPE_MIN_FACE_CONFIDENCE;
+            options.min_face_presence_confidence = INTERNAL_MEIDA_PIPE_MIN_FACE_CONFIDENCE;
+            options.min_tracking_confidence = INTERNAL_MEIDA_PIPE_MIN_FACE_CONFIDENCE;
             options.output_face_blendshapes = true;
             options.output_facial_transformation_matrixes = true;
             options.result_callback = NULL;
@@ -411,6 +421,9 @@ bool brx_motion_media_pipe_video_detector::init(uint32_t pose_count, uint32_t fa
             options.base_options.model_asset_buffer_count = static_cast<unsigned int>(brx_motion_mediapipe_model_asset_get_hand_landmarker_task_size());
             options.base_options.model_asset_path = NULL;
             options.running_mode = VIDEO;
+            options.min_hand_detection_confidence = INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE;
+            options.min_hand_presence_confidence = INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE;
+            options.min_tracking_confidence = INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE;
             options.num_hands = 2U * static_cast<int>(this->m_hand_count);
             options.result_callback = NULL;
 
@@ -554,9 +567,13 @@ void brx_motion_media_pipe_video_detector::uninit()
 
     if (this->m_enable_debug_renderer)
     {
-        assert(NULL != this->m_debug_renderer_window);
-        brx_wsi_destroy_image_window(this->m_debug_renderer_window);
-        this->m_debug_renderer_window = NULL;
+        assert(NULL != this->m_debug_renderer_window_original);
+        brx_wsi_destroy_image_window(this->m_debug_renderer_window_original);
+        this->m_debug_renderer_window_original = NULL;
+
+        assert(NULL != this->m_debug_renderer_window_modified);
+        brx_wsi_destroy_image_window(this->m_debug_renderer_window_modified);
+        this->m_debug_renderer_window_modified = NULL;
 
         this->m_enable_debug_renderer = false;
     }
@@ -690,19 +707,35 @@ void brx_motion_media_pipe_video_detector::set_enable_debug_renderer(bool enable
     {
         if (enable_debug_renderer)
         {
-            mcrt_string debug_renderer_window_name;
-            debug_renderer_window_name = " Brioche Motion Video Detector [";
-            debug_renderer_window_name += in_debug_renderer_window_name;
-            debug_renderer_window_name += "]";
+            {
+                mcrt_string debug_renderer_window_name_original;
+                debug_renderer_window_name_original = " Brioche Motion Video Detector Original [";
+                debug_renderer_window_name_original += in_debug_renderer_window_name;
+                debug_renderer_window_name_original += "]";
 
-            assert(NULL == this->m_debug_renderer_window);
-            this->m_debug_renderer_window = brx_wsi_create_image_window(debug_renderer_window_name.c_str());
+                assert(NULL == this->m_debug_renderer_window_original);
+                this->m_debug_renderer_window_original = brx_wsi_create_image_window(debug_renderer_window_name_original.c_str());
+            }
+
+            {
+                mcrt_string debug_renderer_window_name_modified;
+                debug_renderer_window_name_modified = " Brioche Motion Video Detector Modified [";
+                debug_renderer_window_name_modified += in_debug_renderer_window_name;
+                debug_renderer_window_name_modified += "]";
+
+                assert(NULL == this->m_debug_renderer_window_modified);
+                this->m_debug_renderer_window_modified = brx_wsi_create_image_window(debug_renderer_window_name_modified.c_str());
+            }
         }
         else
         {
-            assert(NULL != this->m_debug_renderer_window);
-            brx_wsi_destroy_image_window(this->m_debug_renderer_window);
-            this->m_debug_renderer_window = NULL;
+            assert(NULL != this->m_debug_renderer_window_original);
+            brx_wsi_destroy_image_window(this->m_debug_renderer_window_original);
+            this->m_debug_renderer_window_original = NULL;
+
+            assert(NULL != this->m_debug_renderer_window_modified);
+            brx_wsi_destroy_image_window(this->m_debug_renderer_window_modified);
+            this->m_debug_renderer_window_modified = NULL;
         }
 
         this->m_enable_debug_renderer = enable_debug_renderer;
@@ -825,6 +858,40 @@ void brx_motion_media_pipe_video_detector::step()
             {
                 // we do NOT need the input image any more
                 debug_renderer_output_image = std::move(input_image);
+
+                // Present
+                cv::Mat debug_renderer_raw_output_image;
+                cv::cvtColor(debug_renderer_output_image, debug_renderer_raw_output_image, cv::COLOR_RGB2BGRA);
+                // debug_renderer_output_image.release();
+
+                void *image_buffer;
+                int32_t image_width;
+                int32_t image_height;
+                {
+                    // mediapipe/examples/desktopdemo_run_graph_main.cc
+                    // mediapipe/framework/formats/image_frame_opencv.h
+                    // mediapipe/framework/formats/image_frame_opencv.cc
+
+                    constexpr int const k_number_of_channels_for_format = 4;
+                    constexpr int const k_channel_size_for_format = sizeof(uint8_t);
+                    constexpr int const k_mat_type_for_format = CV_8U;
+
+                    constexpr uint32_t const k_default_alignment_boundary = 16U;
+
+                    image_width = debug_renderer_raw_output_image.cols;
+                    image_height = debug_renderer_raw_output_image.rows;
+
+                    int const type = CV_MAKETYPE(k_mat_type_for_format, k_number_of_channels_for_format);
+                    int const width_step = (((image_width * k_number_of_channels_for_format * k_channel_size_for_format) - 1) | (k_default_alignment_boundary - 1)) + 1;
+                    assert(type == debug_renderer_raw_output_image.type());
+                    assert(width_step == debug_renderer_raw_output_image.step[0]);
+                    image_buffer = static_cast<void *>(debug_renderer_raw_output_image.data);
+                    assert(0U == (reinterpret_cast<uintptr_t>(image_buffer) & (k_default_alignment_boundary - 1)));
+                    assert(debug_renderer_raw_output_image.isContinuous());
+                }
+
+                assert(NULL != this->m_debug_renderer_window_original);
+                brx_wsi_present_image_window(this->m_debug_renderer_window_original, image_buffer, image_width, image_height);
             }
         }
 
@@ -873,7 +940,7 @@ void brx_motion_media_pipe_video_detector::step()
                     {
                         Landmark const &landmark = pose_world_landmark.landmarks[world_landmark_index];
 
-                        if (((!landmark.has_visibility) || (landmark.visibility > 0.5F)) && ((!landmark.has_presence) || (landmark.presence > 0.5F)))
+                        if (((!landmark.has_visibility) || (landmark.visibility > INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE)) && ((!landmark.has_presence) || (landmark.presence > INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE)))
                         {
                             media_pipe_positions[world_landmark_index] = DirectX::XMFLOAT3(landmark.x, landmark.y, landmark.z);
                             media_pipe_positions_valid[world_landmark_index] = true;
@@ -948,22 +1015,22 @@ void brx_motion_media_pipe_video_detector::step()
 
                     if (media_pipe_positions_valid[INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_HIP] && media_pipe_positions_valid[INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_HIP])
                     {
-                        DirectX::XMStoreFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LOWER_BODY], DirectX::XMVectorScale(DirectX::XMVectorAdd(DirectX::XMVector3TransformCoord(DirectX::XMLoadFloat3(&media_pipe_positions[INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_HIP]), simd_media_pipe_to_gltf), DirectX::XMVector3TransformCoord(DirectX::XMLoadFloat3(&media_pipe_positions[INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_HIP]), simd_media_pipe_to_gltf)), 0.5F));
+                        DirectX::XMStoreFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_CENTER], DirectX::XMVectorScale(DirectX::XMVectorAdd(DirectX::XMVector3TransformCoord(DirectX::XMLoadFloat3(&media_pipe_positions[INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_HIP]), simd_media_pipe_to_gltf), DirectX::XMVector3TransformCoord(DirectX::XMLoadFloat3(&media_pipe_positions[INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_HIP]), simd_media_pipe_to_gltf)), 0.5F));
 
-                        pose_skeleton_joint_translations_model_space_valid[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LOWER_BODY] = true;
+                        pose_skeleton_joint_translations_model_space_valid[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_CENTER] = true;
                     }
                     else
                     {
-                        assert(DirectX::XMVector3Equal(DirectX::XMLoadFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LOWER_BODY]), DirectX::XMVectorZero()));
+                        assert(DirectX::XMVector3Equal(DirectX::XMLoadFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_CENTER]), DirectX::XMVectorZero()));
 
-                        assert(!pose_skeleton_joint_translations_model_space_valid[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LOWER_BODY]);
+                        assert(!pose_skeleton_joint_translations_model_space_valid[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_CENTER]);
                     }
 
-                    if (pose_skeleton_joint_translations_model_space_valid[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LOWER_BODY] && pose_skeleton_joint_translations_model_space_valid[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_ARM] && pose_skeleton_joint_translations_model_space_valid[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_ARM])
+                    if (pose_skeleton_joint_translations_model_space_valid[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_CENTER] && pose_skeleton_joint_translations_model_space_valid[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_ARM] && pose_skeleton_joint_translations_model_space_valid[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_ARM])
                     {
                         float const golden_ratio = std::sqrt(5.0F) * 0.5F - 0.5F;
 
-                        DirectX::XMStoreFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_UPPER_BODY_2], DirectX::XMVectorLerp(DirectX::XMVectorScale(DirectX::XMVectorAdd(DirectX::XMLoadFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_ARM]), DirectX::XMLoadFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_ARM])), 0.5F), DirectX::XMLoadFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LOWER_BODY]), golden_ratio));
+                        DirectX::XMStoreFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_UPPER_BODY_2], DirectX::XMVectorLerp(DirectX::XMVectorScale(DirectX::XMVectorAdd(DirectX::XMLoadFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_ARM]), DirectX::XMLoadFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_ARM])), 0.5F), DirectX::XMLoadFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_CENTER]), golden_ratio));
 
                         pose_skeleton_joint_translations_model_space_valid[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_UPPER_BODY_2] = true;
                     }
@@ -982,7 +1049,7 @@ void brx_motion_media_pipe_video_detector::step()
                         {
                             NormalizedLandmark const &right_wrist_normalized_landmark = pose_normalized_landmark.landmarks[INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_WRIST];
 
-                            if (((!right_wrist_normalized_landmark.has_visibility) || (right_wrist_normalized_landmark.visibility > 0.5F)) && ((!right_wrist_normalized_landmark.has_presence) || (right_wrist_normalized_landmark.presence > 0.5F)))
+                            if (((!right_wrist_normalized_landmark.has_visibility) || (right_wrist_normalized_landmark.visibility > INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE)) && ((!right_wrist_normalized_landmark.has_presence) || (right_wrist_normalized_landmark.presence > INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE)))
                             {
                                 wrist_2d_pose_landmarks.push_back(wrist_2d_pose_landmark_t{right_wrist_normalized_landmark.x * static_cast<float>(input_image_width), right_wrist_normalized_landmark.y * static_cast<float>(input_image_height), true});
                             }
@@ -992,7 +1059,7 @@ void brx_motion_media_pipe_video_detector::step()
                         {
                             NormalizedLandmark const &left_wrist_normalized_landmark = pose_normalized_landmark.landmarks[INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_WRIST];
 
-                            if (((!left_wrist_normalized_landmark.has_visibility) || (left_wrist_normalized_landmark.visibility > 0.5F)) && ((!left_wrist_normalized_landmark.has_presence) || (left_wrist_normalized_landmark.presence > 0.5F)))
+                            if (((!left_wrist_normalized_landmark.has_visibility) || (left_wrist_normalized_landmark.visibility > INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE)) && ((!left_wrist_normalized_landmark.has_presence) || (left_wrist_normalized_landmark.presence > INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE)))
                             {
                                 wrist_2d_pose_landmarks.push_back(wrist_2d_pose_landmark_t{left_wrist_normalized_landmark.x * static_cast<float>(input_image_width), left_wrist_normalized_landmark.y * static_cast<float>(input_image_height), false});
                             }
@@ -1027,11 +1094,9 @@ void brx_motion_media_pipe_video_detector::step()
                             //
                             {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_HIP, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_KNEE},
                             {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_KNEE, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_ANKLE},
-                            {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_ANKLE, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_FOOT},
                             //
                             {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_HIP, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_KNEE},
-                            {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_KNEE, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_ANKLE},
-                            {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_ANKLE, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_FOOT}};
+                            {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_KNEE, INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_ANKLE}};
 
                         constexpr uint32_t const bone_count = sizeof(internal_media_pipe_bones) / sizeof(internal_media_pipe_bones[0]);
 
@@ -1046,7 +1111,7 @@ void brx_motion_media_pipe_video_detector::step()
 
                                 NormalizedLandmark const &end_normalized_landmark = pose_normalized_landmark.landmarks[end_joint_landmark_index];
 
-                                if (((!begin_normalized_landmark.has_visibility) || (begin_normalized_landmark.visibility > 0.5F)) && ((!begin_normalized_landmark.has_presence) || (begin_normalized_landmark.presence > 0.5F)) && ((!end_normalized_landmark.has_visibility) || (end_normalized_landmark.visibility > 0.5F)) && ((!end_normalized_landmark.has_presence) || (end_normalized_landmark.presence > 0.5F)))
+                                if (((!begin_normalized_landmark.has_visibility) || (begin_normalized_landmark.visibility > INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE)) && ((!begin_normalized_landmark.has_presence) || (begin_normalized_landmark.presence > INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE)) && ((!end_normalized_landmark.has_visibility) || (end_normalized_landmark.visibility > INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE)) && ((!end_normalized_landmark.has_presence) || (end_normalized_landmark.presence > INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE)))
                                 {
                                     cv::Point const parent_point(static_cast<int>(begin_normalized_landmark.x * debug_renderer_output_image.cols), static_cast<int>(begin_normalized_landmark.y * debug_renderer_output_image.rows));
 
@@ -1283,7 +1348,7 @@ void brx_motion_media_pipe_video_detector::step()
                         {
                             NormalizedLandmark const &normalized_landmark = face_landmark.landmarks[landmarks_index];
 
-                            if (((!normalized_landmark.has_visibility) || (normalized_landmark.visibility > 0.5F)) && ((!normalized_landmark.has_presence) || (normalized_landmark.presence > 0.5F)))
+                            if (((!normalized_landmark.has_visibility) || (normalized_landmark.visibility > INTERNAL_MEIDA_PIPE_MIN_FACE_CONFIDENCE)) && ((!normalized_landmark.has_presence) || (normalized_landmark.presence > INTERNAL_MEIDA_PIPE_MIN_FACE_CONFIDENCE)))
                             {
                                 cv::Point point(static_cast<int>(normalized_landmark.x * debug_renderer_output_image.cols), static_cast<int>(normalized_landmark.y * debug_renderer_output_image.rows));
                                 cv::circle(debug_renderer_output_image, point, 1, cv::Scalar(0, 255, 0));
@@ -1336,7 +1401,7 @@ void brx_motion_media_pipe_video_detector::step()
                             {
                                 NormalizedLandmark const &wrist_normalized_landmark = hand_normalized_landmark.landmarks[INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_WRIST];
 
-                                if (((!wrist_normalized_landmark.has_visibility) || (wrist_normalized_landmark.visibility > 0.5F)) && ((!wrist_normalized_landmark.has_presence) || (wrist_normalized_landmark.presence > 0.5F)))
+                                if (((!wrist_normalized_landmark.has_visibility) || (wrist_normalized_landmark.visibility > INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE)) && ((!wrist_normalized_landmark.has_presence) || (wrist_normalized_landmark.presence > INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE)))
                                 {
                                     wrist_2d_hand_landmarks.push_back(wrist_2d_hand_landmark_t{wrist_normalized_landmark.x * static_cast<float>(input_image_width), wrist_normalized_landmark.y * static_cast<float>(input_image_height), both_hand_index});
                                 }
@@ -1563,7 +1628,7 @@ void brx_motion_media_pipe_video_detector::step()
                             {
                                 Landmark const &landmark = hand_world_landmark.landmarks[world_landmark_index];
 
-                                if (((!landmark.has_visibility) || (landmark.visibility > 0.5F)) && ((!landmark.has_presence) || (landmark.presence > 0.5F)))
+                                if (((!landmark.has_visibility) || (landmark.visibility > INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE)) && ((!landmark.has_presence) || (landmark.presence > INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE)))
                                 {
                                     media_pipe_positions[world_landmark_index] = DirectX::XMFLOAT3(landmark.x, landmark.y, landmark.z);
                                     media_pipe_positions_valid[world_landmark_index] = true;
@@ -1730,7 +1795,7 @@ void brx_motion_media_pipe_video_detector::step()
 
                                 NormalizedLandmark const &end_normalized_landmark = hand_normalized_landmark.landmarks[end_joint_landmark_index];
 
-                                if (((!begin_normalized_landmark.has_visibility) || (begin_normalized_landmark.visibility > 0.5F)) && ((!begin_normalized_landmark.has_presence) || (begin_normalized_landmark.presence > 0.5F)) && ((!end_normalized_landmark.has_visibility) || (end_normalized_landmark.visibility > 0.5F)) && ((!end_normalized_landmark.has_presence) || (end_normalized_landmark.presence > 0.5F)))
+                                if (((!begin_normalized_landmark.has_visibility) || (begin_normalized_landmark.visibility > INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE)) && ((!begin_normalized_landmark.has_presence) || (begin_normalized_landmark.presence > INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE)) && ((!end_normalized_landmark.has_visibility) || (end_normalized_landmark.visibility > INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE)) && ((!end_normalized_landmark.has_presence) || (end_normalized_landmark.presence > INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE)))
                                 {
                                     cv::Point const parent_point(static_cast<int>(begin_normalized_landmark.x * debug_renderer_output_image.cols), static_cast<int>(begin_normalized_landmark.y * debug_renderer_output_image.rows));
 
@@ -1752,9 +1817,6 @@ void brx_motion_media_pipe_video_detector::step()
 
             if (this->m_enable_debug_renderer)
             {
-                // Left <-> Right
-                // cv::flip(debug_renderer_output_image, debug_renderer_output_image, 1);
-
                 cv::Mat debug_renderer_raw_output_image;
                 cv::cvtColor(debug_renderer_output_image, debug_renderer_raw_output_image, cv::COLOR_RGB2BGRA);
                 debug_renderer_output_image.release();
@@ -1785,8 +1847,8 @@ void brx_motion_media_pipe_video_detector::step()
                     assert(debug_renderer_raw_output_image.isContinuous());
                 }
 
-                assert(NULL != this->m_debug_renderer_window);
-                brx_wsi_present_image_window(this->m_debug_renderer_window, image_buffer, image_width, image_height);
+                assert(NULL != this->m_debug_renderer_window_modified);
+                brx_wsi_present_image_window(this->m_debug_renderer_window_modified, image_buffer, image_width, image_height);
             }
         }
 
@@ -2022,6 +2084,12 @@ static inline uint32_t internal_get_pose_skeleton_joint_index(BRX_MOTION_SKELETO
     uint32_t pose_skeleton_joint_index;
     switch (skeleton_joint_name)
     {
+    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_CENTER:
+    {
+        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_CENTER == skeleton_joint_name);
+        pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_CENTER;
+    }
+    break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_UPPER_BODY_2:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_UPPER_BODY_2 == skeleton_joint_name);
@@ -2062,12 +2130,6 @@ static inline uint32_t internal_get_pose_skeleton_joint_index(BRX_MOTION_SKELETO
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_WRIST == skeleton_joint_name);
         pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_WRIST;
-    }
-    break;
-    case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LOWER_BODY:
-    {
-        assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LOWER_BODY == skeleton_joint_name);
-        pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LOWER_BODY;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LEG:

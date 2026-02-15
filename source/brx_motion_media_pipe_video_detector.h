@@ -56,7 +56,8 @@ class brx_motion_media_pipe_video_detector final : public internal_brx_motion_vi
 	double m_delta_time;
 	int64_t m_timestamp_ms;
 	bool m_enable_debug_renderer;
-	void *m_debug_renderer_window;
+	void *m_debug_renderer_window_original;
+	void *m_debug_renderer_window_modified;
 	bool m_enable_gpu;
 	brx_motion_video_capture const *m_input_video_capture;
 

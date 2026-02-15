@@ -77,10 +77,16 @@ static constexpr double const INTERNAL_HAND_SKELETON_JOINT_ROTATION_EMA_TAU = 0.
 
 // [setupFps](https://github.com/MMD-Blender/blender_mmd_tools/blob/main/mmd_tools/auto_scene_setup.py#L27)
 static constexpr float const INTERNAL_FRAME_DELTA_TIME = 1.0F / 30.0F;
-//
-static constexpr uint32_t const INTERNAL_FRAME_MAXIMUM_SUBSTEP_COUNT = 6U;
+
+static constexpr uint32_t const INTERNAL_LOW_FRAME_MAXIMUM_SUBSTEP_COUNT = 4U;
 // [VMDAnimation::SyncPhysics](https://github.com/benikabocha/saba/blob/master/src/Saba/Model/MMD/VMDAnimation.cpp#L374)
-static constexpr float const INTERNAL_FRAME_SUBSTEP_DELTA_TIME = 1.0F / 60.0F;
+static constexpr float const INTERNAL_LOW_FRAME_SUBSTEP_DELTA_TIME = 1.0F / 60.0F;
+
+static constexpr uint32_t const INTERNAL_MEDIUM_FRAME_MAXIMUM_SUBSTEP_COUNT = 6U;
+static constexpr float const INTERNAL_MEDIUM_FRAME_SUBSTEP_DELTA_TIME = 1.0F / 90.0F;
+
+static constexpr uint32_t const INTERNAL_HIGH_FRAME_MAXIMUM_SUBSTEP_COUNT = 8U;
+static constexpr float const INTERNAL_HIGH_FRAME_SUBSTEP_DELTA_TIME = 1.0F / 120.0F;
 
 static constexpr float const INTERNAL_PHYSICS_SYNCHRONIZATION_DELTA_TIME = 1.0F;
 static constexpr uint32_t const INTERNAL_PHYSICS_SYNCHRONIZATION_MAXIMUM_SUBSTEP_COUNT = 90U;
@@ -101,6 +107,9 @@ constexpr BRX_MOTION_SKELETON_JOINT_NAME const internal_video_detector_face_morp
     BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_EYE};
 
 constexpr BRX_MOTION_SKELETON_JOINT_NAME const internal_video_detector_pose_skeleton_joint_rotations[] = {
+    //
+    BRX_MOTION_SKELETON_JOINT_NAME_MMD_CENTER,
+    //
     BRX_MOTION_SKELETON_JOINT_NAME_MMD_UPPER_BODY_2,
     //
     BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ARM,
@@ -111,10 +120,12 @@ constexpr BRX_MOTION_SKELETON_JOINT_NAME const internal_video_detector_pose_skel
     //
     BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LEG,
     BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_KNEE,
+    BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LEG,
     BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ANKLE,
     //
     BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LEG,
     BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_KNEE,
+    BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LEG,
     BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ANKLE};
 
 constexpr BRX_MOTION_SKELETON_JOINT_NAME const internal_video_detector_face_skeleton_joints[] = {
@@ -160,9 +171,25 @@ static inline void internal_exponential_moving_average_translation(DirectX::XMFL
 
 static inline void internal_exponential_moving_average_rotation(DirectX::XMFLOAT4 &inout_output, DirectX::XMFLOAT4 const &in_input, float alpha);
 
-static inline void internal_video_detector_pose_ik_one_joint_solve(uint32_t const in_ball_and_socket_joint_animation_skeleton_joint_index, uint32_t const in_end_effector_animation_skeleton_joint_index, DirectX::XMFLOAT3 const &in_target_displacement_model_space, uint32_t const *const in_animation_skeleton_joint_parent_indices, DirectX::XMFLOAT4X4 const *const in_animation_skeleton_animation_pose_local_space, DirectX::XMFLOAT4 *const out_ball_and_socket_joint_rotation_local_space);
+static inline void internal_video_detector_ik_one_joint_solve(uint32_t const in_ball_and_socket_joint_animation_skeleton_joint_index, uint32_t const in_end_effector_animation_skeleton_joint_index, DirectX::XMFLOAT3 const &in_normalized_target_displacement_model_space, uint32_t const *const in_animation_skeleton_joint_parent_indices, DirectX::XMFLOAT4X4 const *const in_animation_skeleton_animation_pose_local_space, DirectX::XMFLOAT4 *const out_ball_and_socket_joint_rotation_local_space);
+
+static inline void internal_video_detector_ik_two_joints_solve(uint32_t const in_ball_and_socket_joint_animation_skeleton_joint_index, uint32_t const in_hinge_joint_animation_skeleton_joint_index, uint32_t const in_end_effector_animation_skeleton_joint_index, DirectX::XMFLOAT3 const &in_hinge_joint_axis_local_space, DirectX::XMFLOAT3 const &in_normalized_ball_and_socket_to_hinge_displacement_model_space, DirectX::XMFLOAT3 const &in_normalized_hinge_to_end_effector_displacement_model_space, uint32_t const *const in_animation_skeleton_joint_parent_indices, DirectX::XMFLOAT4X4 const *const in_animation_skeleton_animation_pose_local_space, DirectX::XMFLOAT4 *const out_ball_and_socket_joint_rotation_local_space, DirectX::XMFLOAT4 *const out_hinge_joint_rotation_local_space);
 
 static inline DirectX::XMFLOAT4X4 internal_calculate_transform_model_space(uint32_t const *const in_animation_skeleton_joint_parent_indices, DirectX::XMFLOAT4X4 const *const in_animation_skeleton_local_space, uint32_t const in_animation_skeleton_joint_index);
+
+static inline DirectX::XMFLOAT3 internal_calculate_up_local_space(uint32_t const in_animation_skeleton_joint_index, uint32_t const *const in_animation_skeleton_joint_parent_indices, DirectX::XMFLOAT4X4 const *const in_animation_skeleton_bind_pose_local_space);
+
+static inline DirectX::XMFLOAT3 internal_calculate_hinge_joint_local_space(uint32_t const in_ball_and_socket_joint_animation_skeleton_joint_index, uint32_t const in_hinge_joint_animation_skeleton_joint_index, uint32_t const in_end_effector_animation_skeleton_joint_index, uint32_t const *const in_animation_skeleton_joint_parent_indices, DirectX::XMFLOAT4X4 const *const in_animation_skeleton_bind_pose_local_space);
+
+static inline DirectX::XMFLOAT3 internal_calculate_twist_axis_parent_local_space(uint32_t const in_parent_animation_skeleton_joint_index, uint32_t const in_child_animation_skeleton_joint_index, uint32_t const *const in_animation_skeleton_joint_parent_indices, DirectX::XMFLOAT4X4 const *const in_animation_skeleton_bind_pose_local_space);
+
+static inline DirectX::XMFLOAT3 internal_calculate_twist_axis_child_local_space(uint32_t const in_parent_animation_skeleton_joint_index, uint32_t const in_child_animation_skeleton_joint_index, uint32_t const *const in_animation_skeleton_joint_parent_indices, DirectX::XMFLOAT4X4 const *const in_animation_skeleton_bind_pose_local_space);
+
+static inline DirectX::XMFLOAT4 internal_quaternion_get_twist(DirectX::XMFLOAT4 const &in_quaternion, DirectX::XMFLOAT3 const &in_axis);
+
+static inline DirectX::XMFLOAT4 internal_quaternion_get_swing(DirectX::XMFLOAT4 const &in_quaternion, DirectX::XMFLOAT4 const &in_twist);
+
+static inline DirectX::XMFLOAT4 internal_quaternion_from_swing_twist(DirectX::XMFLOAT4 const &in_swing, DirectX::XMFLOAT4 const &in_twist);
 
 extern "C" brx_motion_animation *brx_motion_create_animation(uint32_t frame_count, uint32_t weight_channel_count, BRX_MOTION_MORPH_TARGET_NAME const *wrapped_weight_channel_names, float const *wrapped_weights, uint32_t rigid_transform_channel_count, BRX_MOTION_SKELETON_JOINT_NAME const *wrapped_rigid_transform_channel_names, brx_motion_rigid_transform const *wrapped_rigid_transforms, uint32_t switch_channel_count, BRX_MOTION_SKELETON_JOINT_CONSTRAINT_NAME const *wrapped_switch_channel_names, uint8_t const *wrapped_switches)
 {
@@ -832,20 +859,18 @@ void brx_motion_animation_animation_instance::step(float delta_time)
     assert(this->m_remainder_time < INTERNAL_FRAME_DELTA_TIME);
     this->m_remainder_time = (this->m_remainder_time + delta_time);
 
-    uint32_t delta_frame_count;
-    if (this->m_remainder_time >= INTERNAL_FRAME_DELTA_TIME)
+    uint32_t raw_delta_frame_count = 0U;
+    while (this->m_remainder_time >= INTERNAL_FRAME_DELTA_TIME)
     {
-        delta_frame_count = static_cast<uint32_t>(this->m_remainder_time * (1.0F / INTERNAL_FRAME_DELTA_TIME));
-        this->m_remainder_time = (this->m_remainder_time - INTERNAL_FRAME_DELTA_TIME * delta_frame_count);
+        this->m_remainder_time -= INTERNAL_FRAME_DELTA_TIME;
+        ++raw_delta_frame_count;
     }
-    else
-    {
-        delta_frame_count = 0U;
-    }
-    assert(delta_frame_count <= 30U);
+
     assert(this->m_remainder_time >= 0.0F);
     assert(this->m_remainder_time < INTERNAL_FRAME_DELTA_TIME);
 
+    // clip
+    uint32_t delta_frame_count = std::min(raw_delta_frame_count, 1U);
     this->m_delta_time = INTERNAL_FRAME_DELTA_TIME * delta_frame_count;
 
     assert(NULL != this->m_animation);
@@ -1762,6 +1787,9 @@ void brx_motion_animation_skeleton_instance::step(BRX_MOTION_PHYSICS_RAGDOLL_QUA
                             right_eye_horizontal_rotation = DirectX::XMQuaternionNormalize(DirectX::XMQuaternionSlerp(DirectX::XMQuaternionIdentity(), eye_rotation_right, std::min(weight * INTERNAL_EYE_WEIGHT_SCALE, INTERNAL_EYE_WEIGHT_MAXIMUM)));
                         }
 
+                        // same hemisphere
+                        assert(DirectX::XMVectorGetX(DirectX::XMVector4Dot(right_eye_vertical_rotation, right_eye_horizontal_rotation)) > 0.0F);
+
                         DirectX::XMFLOAT4 eye_rotation;
                         DirectX::XMStoreFloat4(&eye_rotation, DirectX::XMQuaternionNormalize(DirectX::XMQuaternionSlerp(right_eye_vertical_rotation, right_eye_horizontal_rotation, 0.5F)));
                         current_rotation_local_space = eye_rotation;
@@ -1880,6 +1908,7 @@ void brx_motion_animation_skeleton_instance::step(BRX_MOTION_PHYSICS_RAGDOLL_QUA
         {
             // [ARKit: Validating a Model for Motion Capture](https://developer.apple.com/documentation/arkit/validating-a-model-for-motion-capture)
             constexpr BRX_MOTION_SKELETON_JOINT_NAME const internal_video_detector_pose_skeleton_joint_translations[] = {
+                BRX_MOTION_SKELETON_JOINT_NAME_MMD_CENTER,
                 BRX_MOTION_SKELETON_JOINT_NAME_MMD_UPPER_BODY_2,
                 BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ARM,
                 BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ELBOW,
@@ -1887,7 +1916,6 @@ void brx_motion_animation_skeleton_instance::step(BRX_MOTION_PHYSICS_RAGDOLL_QUA
                 BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ARM,
                 BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ELBOW,
                 BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_WRIST,
-                BRX_MOTION_SKELETON_JOINT_NAME_MMD_LOWER_BODY,
                 BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LEG,
                 BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_KNEE,
                 BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ANKLE,
@@ -1937,7 +1965,59 @@ void brx_motion_animation_skeleton_instance::step(BRX_MOTION_PHYSICS_RAGDOLL_QUA
                 }
             }
 
+            // TODO: shall we use two-joints IK for leg->knee->ankle ???
+
+            // 1. solve leg (ball) from leg -> knee direction
+            // 2. solve knee (ball) from knee -> ankle direction, then project to hinge DOF
+            // 3. re-solve leg (ball) from leg -> ankle direction to compensate for the hinge projection
+
+            constexpr uint32_t internal_video_detector_pose_skeleton_joint_use_ema_init_markers[] = {
+                //
+                true,
+                //
+                true,
+                //
+                true,
+                true,
+                //
+                true,
+                true,
+                //
+                true,
+                true,
+                false,
+                true,
+                //
+                true,
+                true,
+                false,
+                true};
+
+            constexpr uint32_t internal_video_detector_pose_skeleton_joint_drop_twist_markers[] = {
+                //
+                false,
+                //
+                true,
+                //
+                true,
+                true,
+                //
+                true,
+                true,
+                //
+                true,
+                false,
+                false,
+                false,
+                //
+                true,
+                false,
+                false,
+                false};
+
             constexpr uint32_t internal_video_detector_pose_skeleton_joint_end_effector_counts[] = {
+                //
+                2,
                 //
                 2,
                 //
@@ -1950,121 +2030,200 @@ void brx_motion_animation_skeleton_instance::step(BRX_MOTION_PHYSICS_RAGDOLL_QUA
                 1,
                 1,
                 1,
+                1,
                 //
+                1,
                 1,
                 1,
                 1};
 
-            // internal_video_detector_pose_skeleton_joint_translations
+            constexpr bool internal_video_detector_pose_skeleton_joint_use_hinge_markers[] = {
+                //
+                true,
+                //
+                false,
+                //
+                false,
+                false,
+                //
+                false,
+                false,
+                //
+                false,
+                true,
+                false,
+                true,
+                //
+                false,
+                true,
+                false,
+                true};
+
+            DirectX::XMFLOAT3 const internal_video_detector_pose_skeleton_joint_hinge_axes_local_space[] = {
+                //
+                internal_calculate_up_local_space(this->m_skeleton->get_animation_skeleton_joint_index(BRX_MOTION_SKELETON_JOINT_NAME_MMD_CENTER), this->m_skeleton->get_animation_skeleton_joint_parent_indices(), animation_skeleton_bind_pose_local_space.data()),
+                //
+                {0.0F, 0.0F, 0.0F},
+                //
+                {0.0F, 0.0F, 0.0F},
+                {0.0F, 0.0F, 0.0F},
+                //
+                {0.0F, 0.0F, 0.0F},
+                {0.0F, 0.0F, 0.0F},
+                //
+                {0.0F, 0.0F, 0.0F},
+                internal_calculate_hinge_joint_local_space(this->m_skeleton->get_animation_skeleton_joint_index(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LEG), this->m_skeleton->get_animation_skeleton_joint_index(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_KNEE), this->m_skeleton->get_animation_skeleton_joint_index(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ANKLE), this->m_skeleton->get_animation_skeleton_joint_parent_indices(), animation_skeleton_bind_pose_local_space.data()),
+                {0.0F, 0.0F, 0.0F},
+                internal_calculate_twist_axis_child_local_space(this->m_skeleton->get_animation_skeleton_joint_index(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_KNEE), this->m_skeleton->get_animation_skeleton_joint_index(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ANKLE), this->m_skeleton->get_animation_skeleton_joint_parent_indices(), animation_skeleton_bind_pose_local_space.data()),
+                //
+                {0.0F, 0.0F, 0.0F},
+                internal_calculate_hinge_joint_local_space(this->m_skeleton->get_animation_skeleton_joint_index(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LEG), this->m_skeleton->get_animation_skeleton_joint_index(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_KNEE), this->m_skeleton->get_animation_skeleton_joint_index(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ANKLE), this->m_skeleton->get_animation_skeleton_joint_parent_indices(), animation_skeleton_bind_pose_local_space.data()),
+                {0.0F, 0.0F, 0.0F},
+                internal_calculate_twist_axis_child_local_space(this->m_skeleton->get_animation_skeleton_joint_index(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_KNEE), this->m_skeleton->get_animation_skeleton_joint_index(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ANKLE), this->m_skeleton->get_animation_skeleton_joint_parent_indices(), animation_skeleton_bind_pose_local_space.data())};
 
             struct internal_video_detector_pose_skeleton_joint_model_space_translation_indices_t
             {
                 uint32_t m_ball_and_socket_joint_index;
-                uint32_t m_end_effector_indices[3];
+                uint32_t m_end_effector_indices[2];
             };
 
+            // internal_video_detector_pose_skeleton_joint_translations
             constexpr internal_video_detector_pose_skeleton_joint_model_space_translation_indices_t const internal_video_detector_pose_skeleton_joint_model_space_translation_indices[] = {
                 //
-                {0, {1, 4, BRX_MOTION_UINT32_INDEX_INVALID}},
+                {0, {8, 12}},
                 //
-                {1, {2, BRX_MOTION_UINT32_INDEX_INVALID, BRX_MOTION_UINT32_INDEX_INVALID}},
-                {2, {3, BRX_MOTION_UINT32_INDEX_INVALID, BRX_MOTION_UINT32_INDEX_INVALID}},
+                {1, {2, 5}},
                 //
-                {4, {5, BRX_MOTION_UINT32_INDEX_INVALID, BRX_MOTION_UINT32_INDEX_INVALID}},
-                {5, {6, BRX_MOTION_UINT32_INDEX_INVALID, BRX_MOTION_UINT32_INDEX_INVALID}},
+                {2, {3, BRX_MOTION_UINT32_INDEX_INVALID}},
+                {3, {4, BRX_MOTION_UINT32_INDEX_INVALID}},
                 //
-                {8, {9, BRX_MOTION_UINT32_INDEX_INVALID, BRX_MOTION_UINT32_INDEX_INVALID}},
-                {9, {10, BRX_MOTION_UINT32_INDEX_INVALID, BRX_MOTION_UINT32_INDEX_INVALID}},
-                {10, {11, BRX_MOTION_UINT32_INDEX_INVALID, BRX_MOTION_UINT32_INDEX_INVALID}},
+                {5, {6, BRX_MOTION_UINT32_INDEX_INVALID}},
+                {6, {7, BRX_MOTION_UINT32_INDEX_INVALID}},
                 //
-                {12, {13, BRX_MOTION_UINT32_INDEX_INVALID, BRX_MOTION_UINT32_INDEX_INVALID}},
-                {13, {14, BRX_MOTION_UINT32_INDEX_INVALID, BRX_MOTION_UINT32_INDEX_INVALID}},
-                {14, {15, BRX_MOTION_UINT32_INDEX_INVALID, BRX_MOTION_UINT32_INDEX_INVALID}}};
+                {8, {9, BRX_MOTION_UINT32_INDEX_INVALID}},
+                {9, {10, BRX_MOTION_UINT32_INDEX_INVALID}},
+                {8, {10, BRX_MOTION_UINT32_INDEX_INVALID}},
+                {10, {11, BRX_MOTION_UINT32_INDEX_INVALID}},
+                //
+                {12, {13, BRX_MOTION_UINT32_INDEX_INVALID}},
+                {13, {14, BRX_MOTION_UINT32_INDEX_INVALID}},
+                {12, {14, BRX_MOTION_UINT32_INDEX_INVALID}},
+                {14, {15, BRX_MOTION_UINT32_INDEX_INVALID}}};
 
             struct internal_video_detector_pose_skeleton_joint_rotation_names_t
             {
                 BRX_MOTION_SKELETON_JOINT_NAME m_ball_and_socket_joint_name;
-                BRX_MOTION_SKELETON_JOINT_NAME m_end_effector_names[3];
+                BRX_MOTION_SKELETON_JOINT_NAME m_end_effector_names[2];
             };
 
             constexpr internal_video_detector_pose_skeleton_joint_rotation_names_t const internal_video_detector_pose_skeleton_joint_rotation_names[] = {
                 //
-                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_UPPER_BODY_2, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ARM, BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ARM, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT}},
+                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_CENTER, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LEG, BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LEG}},
                 //
-                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ARM, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ELBOW, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT}},
-                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ELBOW, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_WRIST, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT}},
+                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_UPPER_BODY_2, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ARM, BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ARM}},
                 //
-                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ARM, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ELBOW, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT}},
-                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ELBOW, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_WRIST, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT}},
+                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ARM, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ELBOW, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT}},
+                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ELBOW, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_WRIST, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT}},
                 //
-                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LEG, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_KNEE, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT}},
-                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_KNEE, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ANKLE, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT}},
-                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ANKLE, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_TOE_TIP, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT}},
+                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ARM, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ELBOW, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT}},
+                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ELBOW, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_WRIST, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT}},
                 //
-                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LEG, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_KNEE, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT}},
-                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_KNEE, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ANKLE, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT}},
-                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ANKLE, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_TOE_TIP, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT}}};
+                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LEG, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_KNEE, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT}},
+                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_KNEE, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ANKLE, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT}},
+                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LEG, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ANKLE, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT}},
+                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ANKLE, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_TOE_TIP, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT}},
+                //
+                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LEG, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_KNEE, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT}},
+                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_KNEE, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ANKLE, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT}},
+                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LEG, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ANKLE, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT}},
+                {BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ANKLE, {BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_TOE_TIP, BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT}}};
 
-            constexpr uint32_t const video_detector_pose_skeleton_joint_rotation_count = sizeof(internal_video_detector_pose_skeleton_joint_end_effector_counts) / sizeof(internal_video_detector_pose_skeleton_joint_end_effector_counts[0]);
-            static_assert((sizeof(internal_video_detector_pose_skeleton_joint_model_space_translation_indices) / sizeof(internal_video_detector_pose_skeleton_joint_model_space_translation_indices[0])) == video_detector_pose_skeleton_joint_rotation_count, "");
-            static_assert((sizeof(internal_video_detector_pose_skeleton_joint_rotation_names) / sizeof(internal_video_detector_pose_skeleton_joint_rotation_names[0])) == video_detector_pose_skeleton_joint_rotation_count, "");
-            static_assert((sizeof(this->m_video_detector_pose_skeleton_joint_rotations_local_space) / sizeof(this->m_video_detector_pose_skeleton_joint_rotations_local_space[0])) == video_detector_pose_skeleton_joint_rotation_count, "");
+            constexpr uint32_t const video_detector_pose_skeleton_joint_ik_solver_count = sizeof(internal_video_detector_pose_skeleton_joint_use_ema_init_markers) / sizeof(internal_video_detector_pose_skeleton_joint_use_ema_init_markers[0]);
+            static_assert((sizeof(internal_video_detector_pose_skeleton_joint_end_effector_counts) / sizeof(internal_video_detector_pose_skeleton_joint_end_effector_counts[0])) == video_detector_pose_skeleton_joint_ik_solver_count, "");
+            static_assert((sizeof(internal_video_detector_pose_skeleton_joint_use_hinge_markers) / sizeof(internal_video_detector_pose_skeleton_joint_use_hinge_markers[0])) == video_detector_pose_skeleton_joint_ik_solver_count, "");
+            static_assert((sizeof(internal_video_detector_pose_skeleton_joint_hinge_axes_local_space) / sizeof(internal_video_detector_pose_skeleton_joint_hinge_axes_local_space[0])) == video_detector_pose_skeleton_joint_ik_solver_count, "");
+            static_assert((sizeof(internal_video_detector_pose_skeleton_joint_model_space_translation_indices) / sizeof(internal_video_detector_pose_skeleton_joint_model_space_translation_indices[0])) == video_detector_pose_skeleton_joint_ik_solver_count, "");
+            static_assert((sizeof(internal_video_detector_pose_skeleton_joint_rotation_names) / sizeof(internal_video_detector_pose_skeleton_joint_rotation_names[0])) == video_detector_pose_skeleton_joint_ik_solver_count, "");
+            static_assert((sizeof(this->m_video_detector_pose_skeleton_joint_rotations_local_space) / sizeof(this->m_video_detector_pose_skeleton_joint_rotations_local_space[0])) == video_detector_pose_skeleton_joint_ik_solver_count, "");
+            static_assert((sizeof(internal_video_detector_pose_skeleton_joint_rotations) / sizeof(internal_video_detector_pose_skeleton_joint_rotations[0])) == video_detector_pose_skeleton_joint_ik_solver_count, "");
 
             // use the previous rotation as the initial state for IK solver
-            for (uint32_t video_detector_pose_skeleton_joint_rotation_index = 0U; video_detector_pose_skeleton_joint_rotation_index < video_detector_pose_skeleton_joint_rotation_count; ++video_detector_pose_skeleton_joint_rotation_index)
+            for (uint32_t video_detector_pose_skeleton_joint_ik_solver_index = 0U; video_detector_pose_skeleton_joint_ik_solver_index < video_detector_pose_skeleton_joint_ik_solver_count; ++video_detector_pose_skeleton_joint_ik_solver_index)
             {
-                BRX_MOTION_SKELETON_JOINT_NAME const ball_and_socket_joint_animation_skeleton_joint_name = internal_video_detector_pose_skeleton_joint_translations[internal_video_detector_pose_skeleton_joint_model_space_translation_indices[video_detector_pose_skeleton_joint_rotation_index].m_ball_and_socket_joint_index];
-                assert(internal_video_detector_pose_skeleton_joint_rotation_names[video_detector_pose_skeleton_joint_rotation_index].m_ball_and_socket_joint_name == ball_and_socket_joint_animation_skeleton_joint_name);
+                bool const use_ema_init = internal_video_detector_pose_skeleton_joint_use_ema_init_markers[video_detector_pose_skeleton_joint_ik_solver_index];
 
-                uint32_t const ball_and_socket_joint_animation_skeleton_joint_index = this->m_skeleton->get_animation_skeleton_joint_index(ball_and_socket_joint_animation_skeleton_joint_name);
+                uint32_t const video_detector_pose_skeleton_joint_rotation_index = video_detector_pose_skeleton_joint_ik_solver_index;
 
-                if (BRX_MOTION_UINT32_INDEX_INVALID != ball_and_socket_joint_animation_skeleton_joint_index)
+                uint32_t const ball_and_socket_joint_animation_skeleton_joint_translation_index = internal_video_detector_pose_skeleton_joint_model_space_translation_indices[video_detector_pose_skeleton_joint_ik_solver_index].m_ball_and_socket_joint_index;
+
+                BRX_MOTION_SKELETON_JOINT_NAME const ball_and_socket_joint_animation_skeleton_joint_name = internal_video_detector_pose_skeleton_joint_translations[ball_and_socket_joint_animation_skeleton_joint_translation_index];
+                assert(internal_video_detector_pose_skeleton_joint_rotation_names[video_detector_pose_skeleton_joint_ik_solver_index].m_ball_and_socket_joint_name == ball_and_socket_joint_animation_skeleton_joint_name);
+                assert(internal_video_detector_pose_skeleton_joint_rotations[video_detector_pose_skeleton_joint_rotation_index] == ball_and_socket_joint_animation_skeleton_joint_name);
+
+                if (use_ema_init)
                 {
-                    DirectX::XMFLOAT4 const &previous_ball_and_socket_joint_rotation_local_space = this->m_video_detector_pose_skeleton_joint_rotations_local_space[video_detector_pose_skeleton_joint_rotation_index];
+                    uint32_t const ball_and_socket_joint_animation_skeleton_joint_index = this->m_skeleton->get_animation_skeleton_joint_index(ball_and_socket_joint_animation_skeleton_joint_name);
 
-                    DirectX::XMVECTOR ball_and_socket_joint_animation_skeleton_animation_pose_translation_local_space;
+                    if (BRX_MOTION_UINT32_INDEX_INVALID != ball_and_socket_joint_animation_skeleton_joint_index)
                     {
-                        DirectX::XMVECTOR ball_and_socket_joint_animation_skeleton_animation_pose_scale_local_space;
-                        DirectX::XMVECTOR ball_and_socket_joint_animation_skeleton_animation_pose_rotation_local_space;
-                        bool directx_xm_matrix_decompose = DirectX::XMMatrixDecompose(&ball_and_socket_joint_animation_skeleton_animation_pose_scale_local_space, &ball_and_socket_joint_animation_skeleton_animation_pose_rotation_local_space, &ball_and_socket_joint_animation_skeleton_animation_pose_translation_local_space, DirectX::XMLoadFloat4x4(&animation_skeleton_animation_pose_local_space[ball_and_socket_joint_animation_skeleton_joint_index]));
-                        assert(directx_xm_matrix_decompose);
+                        DirectX::XMFLOAT4 const &previous_ball_and_socket_joint_rotation_local_space = this->m_video_detector_pose_skeleton_joint_rotations_local_space[video_detector_pose_skeleton_joint_rotation_index];
 
-                        assert(DirectX::XMVector3EqualInt(DirectX::XMVectorTrueInt(), DirectX::XMVectorLess(DirectX::XMVectorAbs(DirectX::XMVectorSubtract(ball_and_socket_joint_animation_skeleton_animation_pose_scale_local_space, DirectX::XMVectorSplatOne())), DirectX::XMVectorReplicate(INTERNAL_SCALE_EPSILON))));
+                        DirectX::XMVECTOR ball_and_socket_joint_animation_skeleton_animation_pose_translation_local_space;
+                        {
+                            DirectX::XMVECTOR ball_and_socket_joint_animation_skeleton_animation_pose_scale_local_space;
+                            DirectX::XMVECTOR ball_and_socket_joint_animation_skeleton_animation_pose_rotation_local_space;
+                            bool directx_xm_matrix_decompose = DirectX::XMMatrixDecompose(&ball_and_socket_joint_animation_skeleton_animation_pose_scale_local_space, &ball_and_socket_joint_animation_skeleton_animation_pose_rotation_local_space, &ball_and_socket_joint_animation_skeleton_animation_pose_translation_local_space, DirectX::XMLoadFloat4x4(&animation_skeleton_animation_pose_local_space[ball_and_socket_joint_animation_skeleton_joint_index]));
+                            assert(directx_xm_matrix_decompose);
+
+                            assert(DirectX::XMVector3EqualInt(DirectX::XMVectorTrueInt(), DirectX::XMVectorLess(DirectX::XMVectorAbs(DirectX::XMVectorSubtract(ball_and_socket_joint_animation_skeleton_animation_pose_scale_local_space, DirectX::XMVectorSplatOne())), DirectX::XMVectorReplicate(INTERNAL_SCALE_EPSILON))));
+                        }
+                        assert(DirectX::XMVector3EqualInt(DirectX::XMVectorTrueInt(), DirectX::XMVectorLess(DirectX::XMVectorAbs(DirectX::XMVectorSubtract(ball_and_socket_joint_animation_skeleton_animation_pose_translation_local_space, DirectX::XMLoadFloat3(&this->m_skeleton->get_animation_skeleton_bind_pose_local_space()[ball_and_socket_joint_animation_skeleton_joint_index].m_translation))), DirectX::XMVectorReplicate(INTERNAL_TRANSLATION_EPSILON))));
+
+                        assert(joint_input_animation_skeleton_joint_indices.end() != joint_input_animation_skeleton_joint_indices.find(ball_and_socket_joint_animation_skeleton_joint_index));
+
+                        DirectX::XMStoreFloat4x4(&animation_skeleton_animation_pose_local_space[ball_and_socket_joint_animation_skeleton_joint_index], DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationQuaternion(DirectX::XMLoadFloat4(&previous_ball_and_socket_joint_rotation_local_space)), DirectX::XMMatrixTranslationFromVector(ball_and_socket_joint_animation_skeleton_animation_pose_translation_local_space)));
                     }
-                    assert(DirectX::XMVector3EqualInt(DirectX::XMVectorTrueInt(), DirectX::XMVectorLess(DirectX::XMVectorAbs(DirectX::XMVectorSubtract(ball_and_socket_joint_animation_skeleton_animation_pose_translation_local_space, DirectX::XMLoadFloat3(&this->m_skeleton->get_animation_skeleton_bind_pose_local_space()[ball_and_socket_joint_animation_skeleton_joint_index].m_translation))), DirectX::XMVectorReplicate(INTERNAL_TRANSLATION_EPSILON))));
-
-                    assert(joint_input_animation_skeleton_joint_indices.end() != joint_input_animation_skeleton_joint_indices.find(ball_and_socket_joint_animation_skeleton_joint_index));
-
-                    DirectX::XMStoreFloat4x4(&animation_skeleton_animation_pose_local_space[ball_and_socket_joint_animation_skeleton_joint_index], DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationQuaternion(DirectX::XMLoadFloat4(&previous_ball_and_socket_joint_rotation_local_space)), DirectX::XMMatrixTranslationFromVector(ball_and_socket_joint_animation_skeleton_animation_pose_translation_local_space)));
+                    else
+                    {
+                        assert(false);
+                    }
                 }
                 else
                 {
-                    assert(false);
+                    assert((BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LEG == ball_and_socket_joint_animation_skeleton_joint_name) || (BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LEG == ball_and_socket_joint_animation_skeleton_joint_name));
                 }
             }
 
             // perform IK solver
-            for (uint32_t video_detector_pose_skeleton_joint_rotation_index = 0U; video_detector_pose_skeleton_joint_rotation_index < video_detector_pose_skeleton_joint_rotation_count; ++video_detector_pose_skeleton_joint_rotation_index)
+            for (uint32_t video_detector_pose_skeleton_joint_ik_solver_index = 0U; video_detector_pose_skeleton_joint_ik_solver_index < video_detector_pose_skeleton_joint_ik_solver_count; ++video_detector_pose_skeleton_joint_ik_solver_index)
             {
-                uint32_t const ball_and_socket_joint_animation_skeleton_joint_translation_index = internal_video_detector_pose_skeleton_joint_model_space_translation_indices[video_detector_pose_skeleton_joint_rotation_index].m_ball_and_socket_joint_index;
+                uint32_t const video_detector_pose_skeleton_joint_rotation_index = video_detector_pose_skeleton_joint_ik_solver_index;
+
+                uint32_t const ball_and_socket_joint_animation_skeleton_joint_translation_index = internal_video_detector_pose_skeleton_joint_model_space_translation_indices[video_detector_pose_skeleton_joint_ik_solver_index].m_ball_and_socket_joint_index;
 
                 BRX_MOTION_SKELETON_JOINT_NAME const ball_and_socket_joint_animation_skeleton_joint_name = internal_video_detector_pose_skeleton_joint_translations[ball_and_socket_joint_animation_skeleton_joint_translation_index];
-                assert(internal_video_detector_pose_skeleton_joint_rotation_names[video_detector_pose_skeleton_joint_rotation_index].m_ball_and_socket_joint_name == ball_and_socket_joint_animation_skeleton_joint_name);
+                assert(internal_video_detector_pose_skeleton_joint_rotation_names[video_detector_pose_skeleton_joint_ik_solver_index].m_ball_and_socket_joint_name == ball_and_socket_joint_animation_skeleton_joint_name);
                 assert(internal_video_detector_pose_skeleton_joint_rotations[video_detector_pose_skeleton_joint_rotation_index] == ball_and_socket_joint_animation_skeleton_joint_name);
 
                 uint32_t const ball_and_socket_joint_animation_skeleton_joint_index = this->m_skeleton->get_animation_skeleton_joint_index(ball_and_socket_joint_animation_skeleton_joint_name);
 
-                uint32_t const end_effector_count = internal_video_detector_pose_skeleton_joint_end_effector_counts[video_detector_pose_skeleton_joint_rotation_index];
+                bool const drop_twist = internal_video_detector_pose_skeleton_joint_drop_twist_markers[video_detector_pose_skeleton_joint_ik_solver_index];
+
+                bool const use_hinge = internal_video_detector_pose_skeleton_joint_use_hinge_markers[video_detector_pose_skeleton_joint_ik_solver_index];
+
+                DirectX::XMFLOAT3 const hinge_axis_local_space = internal_video_detector_pose_skeleton_joint_hinge_axes_local_space[video_detector_pose_skeleton_joint_ik_solver_index];
+
+                uint32_t const end_effector_count = internal_video_detector_pose_skeleton_joint_end_effector_counts[video_detector_pose_skeleton_joint_ik_solver_index];
 
                 DirectX::XMFLOAT4 current_ball_and_socket_joint_rotation_local_space;
                 bool ik_solved = false;
 
                 for (uint32_t end_effector_index = 0U; end_effector_index < end_effector_count; ++end_effector_index)
                 {
-                    uint32_t const end_effector_animation_skeleton_joint_translation_index = internal_video_detector_pose_skeleton_joint_model_space_translation_indices[video_detector_pose_skeleton_joint_rotation_index].m_end_effector_indices[end_effector_index];
+                    uint32_t const end_effector_animation_skeleton_joint_translation_index = internal_video_detector_pose_skeleton_joint_model_space_translation_indices[video_detector_pose_skeleton_joint_ik_solver_index].m_end_effector_indices[end_effector_index];
 
                     BRX_MOTION_SKELETON_JOINT_NAME const end_effector_animation_skeleton_joint_name = internal_video_detector_pose_skeleton_joint_translations[end_effector_animation_skeleton_joint_translation_index];
-                    assert(internal_video_detector_pose_skeleton_joint_rotation_names[video_detector_pose_skeleton_joint_rotation_index].m_end_effector_names[end_effector_index] == end_effector_animation_skeleton_joint_name);
+                    assert(internal_video_detector_pose_skeleton_joint_rotation_names[video_detector_pose_skeleton_joint_ik_solver_index].m_end_effector_names[end_effector_index] == end_effector_animation_skeleton_joint_name);
                     uint32_t const end_effector_animation_skeleton_joint_index = this->m_skeleton->get_animation_skeleton_joint_index(end_effector_animation_skeleton_joint_name);
 
                     if ((BRX_MOTION_UINT32_INDEX_INVALID != ball_and_socket_joint_animation_skeleton_joint_index) && (BRX_MOTION_UINT32_INDEX_INVALID != end_effector_animation_skeleton_joint_index))
@@ -2080,26 +2239,83 @@ void brx_motion_animation_skeleton_instance::step(BRX_MOTION_PHYSICS_RAGDOLL_QUA
 
                             assert(!DirectX::XMVector3Equal(DirectX::XMLoadFloat3(&end_effector_video_detector_pose_translation_model_space), DirectX::XMVectorZero()));
 
-                            DirectX::XMFLOAT3 target_displacement_model_space;
+                            DirectX::XMFLOAT3 normalized_target_displacement_model_space;
                             {
-                                // TODO: do we really need to scale to make sure the translation is high enough?
-                                DirectX::XMStoreFloat3(&target_displacement_model_space, DirectX::XMVectorScale(DirectX::XMVector3Normalize(DirectX::XMVectorSubtract(DirectX::XMLoadFloat3(&end_effector_video_detector_pose_translation_model_space), DirectX::XMLoadFloat3(&ball_and_socket_joint_video_detector_pose_translation_model_space))), 5.0F));
+                                DirectX::XMStoreFloat3(&normalized_target_displacement_model_space, DirectX::XMVector3Normalize(DirectX::XMVectorSubtract(DirectX::XMLoadFloat3(&end_effector_video_detector_pose_translation_model_space), DirectX::XMLoadFloat3(&ball_and_socket_joint_video_detector_pose_translation_model_space))));
+                            }
+
+                            DirectX::XMFLOAT4 raw_1_ik_solved_ball_and_socket_joint_rotation_local_space;
+                            internal_video_detector_ik_one_joint_solve(ball_and_socket_joint_animation_skeleton_joint_index, end_effector_animation_skeleton_joint_index, normalized_target_displacement_model_space, this->m_skeleton->get_animation_skeleton_joint_parent_indices(), animation_skeleton_animation_pose_local_space.data(), &raw_1_ik_solved_ball_and_socket_joint_rotation_local_space);
+
+                            DirectX::XMFLOAT4 raw_2_ik_solved_ball_and_socket_joint_rotation_local_space;
+                            if (drop_twist)
+                            {
+                                assert(!use_hinge);
+
+                                // TODO: move to constant list?
+                                DirectX::XMFLOAT3 twist_axis_local_space = internal_calculate_twist_axis_parent_local_space(ball_and_socket_joint_animation_skeleton_joint_index, end_effector_animation_skeleton_joint_index, this->m_skeleton->get_animation_skeleton_joint_parent_indices(), animation_skeleton_bind_pose_local_space.data());
+
+                                DirectX::XMFLOAT4 twist_local_space = internal_quaternion_get_twist(raw_1_ik_solved_ball_and_socket_joint_rotation_local_space, twist_axis_local_space);
+
+                                DirectX::XMFLOAT4 swing_local_space = internal_quaternion_get_swing(raw_1_ik_solved_ball_and_socket_joint_rotation_local_space, twist_local_space);
+
+                                raw_2_ik_solved_ball_and_socket_joint_rotation_local_space = swing_local_space;
+                            }
+                            else
+                            {
+#ifndef NDEBUG
+                                if (use_hinge)
+                                {
+                                    assert((BRX_MOTION_SKELETON_JOINT_NAME_MMD_CENTER == ball_and_socket_joint_animation_skeleton_joint_name) || (BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_KNEE == ball_and_socket_joint_animation_skeleton_joint_name) || (BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_KNEE == ball_and_socket_joint_animation_skeleton_joint_name) || (BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ANKLE == ball_and_socket_joint_animation_skeleton_joint_name) || (BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ANKLE == ball_and_socket_joint_animation_skeleton_joint_name));
+                                }
+                                else
+                                {
+                                    assert((BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LEG == ball_and_socket_joint_animation_skeleton_joint_name) || (BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LEG == ball_and_socket_joint_animation_skeleton_joint_name));
+                                }
+#endif
+                                raw_2_ik_solved_ball_and_socket_joint_rotation_local_space = raw_1_ik_solved_ball_and_socket_joint_rotation_local_space;
                             }
 
                             DirectX::XMFLOAT4 ik_solved_ball_and_socket_joint_rotation_local_space;
-                            internal_video_detector_pose_ik_one_joint_solve(ball_and_socket_joint_animation_skeleton_joint_index, end_effector_animation_skeleton_joint_index, target_displacement_model_space, this->m_skeleton->get_animation_skeleton_joint_parent_indices(), animation_skeleton_animation_pose_local_space.data(), &ik_solved_ball_and_socket_joint_rotation_local_space);
+                            if (!use_hinge)
+                            {
+                                assert(DirectX::XMVector3Equal(DirectX::XMLoadFloat3(&hinge_axis_local_space), DirectX::XMVectorZero()));
+
+                                ik_solved_ball_and_socket_joint_rotation_local_space = raw_2_ik_solved_ball_and_socket_joint_rotation_local_space;
+                            }
+                            else
+                            {
+                                assert((BRX_MOTION_SKELETON_JOINT_NAME_MMD_CENTER == ball_and_socket_joint_animation_skeleton_joint_name) || (BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_KNEE == ball_and_socket_joint_animation_skeleton_joint_name) || (BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_KNEE == ball_and_socket_joint_animation_skeleton_joint_name) || (BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ANKLE == ball_and_socket_joint_animation_skeleton_joint_name) || (BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ANKLE == ball_and_socket_joint_animation_skeleton_joint_name));
+
+                                assert(!DirectX::XMVector3Equal(DirectX::XMLoadFloat3(&hinge_axis_local_space), DirectX::XMVectorZero()));
+
+                                ik_solved_ball_and_socket_joint_rotation_local_space = internal_quaternion_get_twist(raw_2_ik_solved_ball_and_socket_joint_rotation_local_space, hinge_axis_local_space);
+                            }
 
                             if (!ik_solved)
                             {
                                 current_ball_and_socket_joint_rotation_local_space = ik_solved_ball_and_socket_joint_rotation_local_space;
+
                                 ik_solved = true;
                             }
                             else
                             {
                                 // we have average result to use the blend factor 0.5 for 2 end effectors
-                                // the result depends on the order when we have 3 end effectors, but it is fine at present
-                                assert((2U == end_effector_count) || (3U == end_effector_count));
-                                DirectX::XMStoreFloat4(&current_ball_and_socket_joint_rotation_local_space, DirectX::XMQuaternionNormalize(DirectX::XMQuaternionSlerp(DirectX::XMLoadFloat4(&current_ball_and_socket_joint_rotation_local_space), DirectX::XMLoadFloat4(&ik_solved_ball_and_socket_joint_rotation_local_space), 0.5F)));
+                                assert(2U == end_effector_count);
+                                DirectX::XMVECTOR simd_current_ball_and_socket_joint_rotation_local_space = DirectX::XMLoadFloat4(&current_ball_and_socket_joint_rotation_local_space);
+                                DirectX::XMVECTOR simd_ik_solved_ball_and_socket_joint_rotation_local_space = DirectX::XMLoadFloat4(&ik_solved_ball_and_socket_joint_rotation_local_space);
+
+                                DirectX::XMVECTOR simd_ik_solved_ball_and_socket_joint_rotation_local_space_same_hemisphere;
+                                if (DirectX::XMVectorGetX(DirectX::XMVector4Dot(simd_current_ball_and_socket_joint_rotation_local_space, simd_ik_solved_ball_and_socket_joint_rotation_local_space)) > 0.0F)
+                                {
+                                    simd_ik_solved_ball_and_socket_joint_rotation_local_space_same_hemisphere = simd_ik_solved_ball_and_socket_joint_rotation_local_space;
+                                }
+                                else
+                                {
+                                    simd_ik_solved_ball_and_socket_joint_rotation_local_space_same_hemisphere = DirectX::XMVectorNegate(simd_ik_solved_ball_and_socket_joint_rotation_local_space);
+                                }
+
+                                DirectX::XMStoreFloat4(&current_ball_and_socket_joint_rotation_local_space, DirectX::XMQuaternionNormalize(DirectX::XMQuaternionSlerp(simd_current_ball_and_socket_joint_rotation_local_space, simd_ik_solved_ball_and_socket_joint_rotation_local_space_same_hemisphere, 0.5F)));
                             }
                         }
                     }
@@ -2477,12 +2693,16 @@ void brx_motion_animation_skeleton_instance::step(BRX_MOTION_PHYSICS_RAGDOLL_QUA
             static_assert((sizeof(internal_video_detector_hand_skeleton_joint_model_space_translation_indices) / sizeof(internal_video_detector_hand_skeleton_joint_model_space_translation_indices[0])) == video_detector_hand_skeleton_joint_rotation_count, "");
             static_assert((sizeof(internal_video_detector_hand_skeleton_joint_rotation_names) / sizeof(internal_video_detector_hand_skeleton_joint_rotation_names[0])) == video_detector_hand_skeleton_joint_rotation_count, "");
             static_assert((sizeof(this->m_video_detector_hand_skeleton_joint_rotations_local_space) / sizeof(this->m_video_detector_hand_skeleton_joint_rotations_local_space[0])) == video_detector_hand_skeleton_joint_rotation_count, "");
+            static_assert((sizeof(internal_video_detector_hand_skeleton_joint_rotations) / sizeof(internal_video_detector_hand_skeleton_joint_rotations[0])) == video_detector_hand_skeleton_joint_rotation_count, "");
 
             // use the previous rotation as the initial state for IK solver
             for (uint32_t video_detector_hand_skeleton_joint_rotation_index = 0U; video_detector_hand_skeleton_joint_rotation_index < video_detector_hand_skeleton_joint_rotation_count; ++video_detector_hand_skeleton_joint_rotation_index)
             {
-                BRX_MOTION_SKELETON_JOINT_NAME const ball_and_socket_joint_animation_skeleton_joint_name = internal_video_detector_hand_skeleton_joint_translations[internal_video_detector_hand_skeleton_joint_model_space_translation_indices[video_detector_hand_skeleton_joint_rotation_index].m_ball_and_socket_joint_index];
+                uint32_t const ball_and_socket_joint_animation_skeleton_joint_translation_index = internal_video_detector_hand_skeleton_joint_model_space_translation_indices[video_detector_hand_skeleton_joint_rotation_index].m_ball_and_socket_joint_index;
+
+                BRX_MOTION_SKELETON_JOINT_NAME const ball_and_socket_joint_animation_skeleton_joint_name = internal_video_detector_hand_skeleton_joint_translations[ball_and_socket_joint_animation_skeleton_joint_translation_index];
                 assert(internal_video_detector_hand_skeleton_joint_rotation_names[video_detector_hand_skeleton_joint_rotation_index].m_ball_and_socket_joint_name == ball_and_socket_joint_animation_skeleton_joint_name);
+                assert(internal_video_detector_hand_skeleton_joint_rotations[video_detector_hand_skeleton_joint_rotation_index] == ball_and_socket_joint_animation_skeleton_joint_name);
 
                 uint32_t const ball_and_socket_joint_animation_skeleton_joint_index = this->m_skeleton->get_animation_skeleton_joint_index(ball_and_socket_joint_animation_skeleton_joint_name);
 
@@ -2548,14 +2768,25 @@ void brx_motion_animation_skeleton_instance::step(BRX_MOTION_PHYSICS_RAGDOLL_QUA
 
                             assert(!DirectX::XMVector3Equal(DirectX::XMLoadFloat3(&end_effector_video_detector_hand_translation_model_space), DirectX::XMVectorZero()));
 
-                            DirectX::XMFLOAT3 target_displacement_model_space;
+                            DirectX::XMFLOAT3 normalized_target_displacement_model_space;
                             {
-                                // TODO: do we really need to scale to make sure the translation is high enough?
-                                DirectX::XMStoreFloat3(&target_displacement_model_space, DirectX::XMVectorScale(DirectX::XMVector3Normalize(DirectX::XMVectorSubtract(DirectX::XMLoadFloat3(&end_effector_video_detector_hand_translation_model_space), DirectX::XMLoadFloat3(&ball_and_socket_joint_video_detector_hand_translation_model_space))), 5.0F));
+                                DirectX::XMStoreFloat3(&normalized_target_displacement_model_space, DirectX::XMVector3Normalize(DirectX::XMVectorSubtract(DirectX::XMLoadFloat3(&end_effector_video_detector_hand_translation_model_space), DirectX::XMLoadFloat3(&ball_and_socket_joint_video_detector_hand_translation_model_space))));
                             }
 
+                            DirectX::XMFLOAT4 raw_ik_solved_ball_and_socket_joint_rotation_local_space;
+                            internal_video_detector_ik_one_joint_solve(ball_and_socket_joint_animation_skeleton_joint_index, end_effector_animation_skeleton_joint_index, normalized_target_displacement_model_space, this->m_skeleton->get_animation_skeleton_joint_parent_indices(), animation_skeleton_animation_pose_local_space.data(), &raw_ik_solved_ball_and_socket_joint_rotation_local_space);
+
                             DirectX::XMFLOAT4 ik_solved_ball_and_socket_joint_rotation_local_space;
-                            internal_video_detector_pose_ik_one_joint_solve(ball_and_socket_joint_animation_skeleton_joint_index, end_effector_animation_skeleton_joint_index, target_displacement_model_space, this->m_skeleton->get_animation_skeleton_joint_parent_indices(), animation_skeleton_animation_pose_local_space.data(), &ik_solved_ball_and_socket_joint_rotation_local_space);
+                            {
+                                // TODO: move to constant list?
+                                DirectX::XMFLOAT3 twist_axis_local_space = internal_calculate_twist_axis_parent_local_space(ball_and_socket_joint_animation_skeleton_joint_index, end_effector_animation_skeleton_joint_index, this->m_skeleton->get_animation_skeleton_joint_parent_indices(), animation_skeleton_bind_pose_local_space.data());
+
+                                DirectX::XMFLOAT4 twist_local_space = internal_quaternion_get_twist(raw_ik_solved_ball_and_socket_joint_rotation_local_space, twist_axis_local_space);
+
+                                DirectX::XMFLOAT4 swing_local_space = internal_quaternion_get_swing(raw_ik_solved_ball_and_socket_joint_rotation_local_space, twist_local_space);
+
+                                ik_solved_ball_and_socket_joint_rotation_local_space = swing_local_space;
+                            }
 
                             if (!ik_solved)
                             {
@@ -2566,7 +2797,20 @@ void brx_motion_animation_skeleton_instance::step(BRX_MOTION_PHYSICS_RAGDOLL_QUA
                             {
                                 // the result depends on the order when we have 5 end effectors, but it is fine at present
                                 assert(5U == end_effector_count);
-                                DirectX::XMStoreFloat4(&current_ball_and_socket_joint_rotation_local_space, DirectX::XMQuaternionNormalize(DirectX::XMQuaternionSlerp(DirectX::XMLoadFloat4(&current_ball_and_socket_joint_rotation_local_space), DirectX::XMLoadFloat4(&ik_solved_ball_and_socket_joint_rotation_local_space), 0.5F)));
+                                DirectX::XMVECTOR simd_current_ball_and_socket_joint_rotation_local_space = DirectX::XMLoadFloat4(&current_ball_and_socket_joint_rotation_local_space);
+                                DirectX::XMVECTOR simd_ik_solved_ball_and_socket_joint_rotation_local_space = DirectX::XMLoadFloat4(&ik_solved_ball_and_socket_joint_rotation_local_space);
+
+                                DirectX::XMVECTOR simd_ik_solved_ball_and_socket_joint_rotation_local_space_same_hemisphere;
+                                if (DirectX::XMVectorGetX(DirectX::XMVector4Dot(simd_current_ball_and_socket_joint_rotation_local_space, simd_ik_solved_ball_and_socket_joint_rotation_local_space)) > 0.0F)
+                                {
+                                    simd_ik_solved_ball_and_socket_joint_rotation_local_space_same_hemisphere = simd_ik_solved_ball_and_socket_joint_rotation_local_space;
+                                }
+                                else
+                                {
+                                    simd_ik_solved_ball_and_socket_joint_rotation_local_space_same_hemisphere = DirectX::XMVectorNegate(simd_ik_solved_ball_and_socket_joint_rotation_local_space);
+                                }
+
+                                DirectX::XMStoreFloat4(&current_ball_and_socket_joint_rotation_local_space, DirectX::XMQuaternionNormalize(DirectX::XMQuaternionSlerp(simd_current_ball_and_socket_joint_rotation_local_space, simd_ik_solved_ball_and_socket_joint_rotation_local_space_same_hemisphere, 0.5F)));
                             }
                         }
                     }
@@ -2696,26 +2940,25 @@ void brx_motion_animation_skeleton_instance::step(BRX_MOTION_PHYSICS_RAGDOLL_QUA
                 {
                     physics_delta_time = this->m_joint_input_animation_instance->get_delta_time();
 
-                    // TODO: select the best configuration???
                     switch (physics_ragdoll_quality)
                     {
                     case BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_LOW:
                     {
-                        physics_max_substep_count = 3U;
-                        physics_substep_delta_time = 1.0 / 30.0F;
+                        physics_max_substep_count = INTERNAL_LOW_FRAME_MAXIMUM_SUBSTEP_COUNT;
+                        physics_substep_delta_time = INTERNAL_LOW_FRAME_SUBSTEP_DELTA_TIME;
                     }
                     break;
                     case BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_MEDIUM:
                     {
-                        physics_max_substep_count = 6U;
-                        physics_substep_delta_time = 1.0 / 60.0F;
+                        physics_max_substep_count = INTERNAL_MEDIUM_FRAME_MAXIMUM_SUBSTEP_COUNT;
+                        physics_substep_delta_time = INTERNAL_MEDIUM_FRAME_SUBSTEP_DELTA_TIME;
                     }
                     break;
                     default:
                     {
                         assert(BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_HIGH == physics_ragdoll_quality);
-                        physics_max_substep_count = 9U;
-                        physics_substep_delta_time = 1.0 / 90.0F;
+                        physics_max_substep_count = INTERNAL_HIGH_FRAME_MAXIMUM_SUBSTEP_COUNT;
+                        physics_substep_delta_time = INTERNAL_HIGH_FRAME_SUBSTEP_DELTA_TIME;
                     }
                     }
                 }
@@ -2734,13 +2977,69 @@ void brx_motion_animation_skeleton_instance::step(BRX_MOTION_PHYSICS_RAGDOLL_QUA
                 this->m_joint_input_continuous = true;
             }
         }
+        else if (NULL != this->m_joint_input_video_detector)
+        {
+            if (this->m_joint_input_continuous)
+            {
+                physics_delta_time = static_cast<internal_brx_motion_video_detector const *>(this->m_joint_input_video_detector)->get_delta_time();
+
+                switch (physics_ragdoll_quality)
+                {
+                case BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_LOW:
+                {
+                    physics_max_substep_count = INTERNAL_LOW_FRAME_MAXIMUM_SUBSTEP_COUNT;
+                    physics_substep_delta_time = INTERNAL_LOW_FRAME_SUBSTEP_DELTA_TIME;
+                }
+                break;
+                case BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_MEDIUM:
+                {
+                    physics_max_substep_count = INTERNAL_MEDIUM_FRAME_MAXIMUM_SUBSTEP_COUNT;
+                    physics_substep_delta_time = INTERNAL_MEDIUM_FRAME_SUBSTEP_DELTA_TIME;
+                }
+                break;
+                default:
+                {
+                    assert(BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_HIGH == physics_ragdoll_quality);
+                    physics_max_substep_count = INTERNAL_HIGH_FRAME_MAXIMUM_SUBSTEP_COUNT;
+                    physics_substep_delta_time = INTERNAL_HIGH_FRAME_SUBSTEP_DELTA_TIME;
+                }
+                }
+            }
+            else
+            {
+                physics_delta_time = INTERNAL_PHYSICS_SYNCHRONIZATION_DELTA_TIME;
+                physics_max_substep_count = INTERNAL_PHYSICS_SYNCHRONIZATION_MAXIMUM_SUBSTEP_COUNT;
+                physics_substep_delta_time = INTERNAL_PHYSICS_SYNCHRONIZATION_SUBSTEP_DELTA_TIME;
+                this->m_joint_input_continuous = true;
+            }
+        }
         else
         {
             if (this->m_joint_input_continuous)
             {
-                physics_delta_time = INTERNAL_FRAME_DELTA_TIME;
-                physics_max_substep_count = INTERNAL_FRAME_MAXIMUM_SUBSTEP_COUNT;
-                physics_substep_delta_time = INTERNAL_FRAME_SUBSTEP_DELTA_TIME;
+                physics_delta_time = (INTERNAL_FRAME_DELTA_TIME * 0.5F);
+
+                switch (physics_ragdoll_quality)
+                {
+                case BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_LOW:
+                {
+                    physics_max_substep_count = INTERNAL_LOW_FRAME_MAXIMUM_SUBSTEP_COUNT;
+                    physics_substep_delta_time = INTERNAL_LOW_FRAME_SUBSTEP_DELTA_TIME;
+                }
+                break;
+                case BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_MEDIUM:
+                {
+                    physics_max_substep_count = INTERNAL_MEDIUM_FRAME_MAXIMUM_SUBSTEP_COUNT;
+                    physics_substep_delta_time = INTERNAL_MEDIUM_FRAME_SUBSTEP_DELTA_TIME;
+                }
+                break;
+                default:
+                {
+                    assert(BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_HIGH == physics_ragdoll_quality);
+                    physics_max_substep_count = INTERNAL_HIGH_FRAME_MAXIMUM_SUBSTEP_COUNT;
+                    physics_substep_delta_time = INTERNAL_HIGH_FRAME_SUBSTEP_DELTA_TIME;
+                }
+                }
             }
             else
             {
@@ -3129,13 +3428,13 @@ static inline void internal_exponential_moving_average_rotation(DirectX::XMFLOAT
     DirectX::XMVECTOR current_input = DirectX::XMLoadFloat4(&in_input);
 
     DirectX::XMVECTOR current_input_same_hemisphere;
-    if (DirectX::XMVectorGetX(DirectX::XMVector4Dot(previous_output, current_input)) < 0.0F)
+    if (DirectX::XMVectorGetX(DirectX::XMVector4Dot(previous_output, current_input)) > 0.0F)
     {
-        current_input_same_hemisphere = DirectX::XMVectorNegate(current_input);
+        current_input_same_hemisphere = current_input;
     }
     else
     {
-        current_input_same_hemisphere = current_input;
+        current_input_same_hemisphere = DirectX::XMVectorNegate(current_input);
     }
 
     DirectX::XMFLOAT4 current_output;
@@ -3144,9 +3443,11 @@ static inline void internal_exponential_moving_average_rotation(DirectX::XMFLOAT
     inout_output = current_output;
 }
 
-static inline void internal_video_detector_pose_ik_one_joint_solve(uint32_t const in_ball_and_socket_joint_animation_skeleton_joint_index, uint32_t const in_end_effector_animation_skeleton_joint_index, DirectX::XMFLOAT3 const &in_target_displacement_model_space, uint32_t const *const in_animation_skeleton_joint_parent_indices, DirectX::XMFLOAT4X4 const *const in_animation_skeleton_animation_pose_local_space, DirectX::XMFLOAT4 *const out_ball_and_socket_joint_rotation_local_space)
+static inline void internal_video_detector_ik_one_joint_solve(uint32_t const in_ball_and_socket_joint_animation_skeleton_joint_index, uint32_t const in_end_effector_animation_skeleton_joint_index, DirectX::XMFLOAT3 const &in_normalized_target_displacement_model_space, uint32_t const *const in_animation_skeleton_joint_parent_indices, DirectX::XMFLOAT4X4 const *const in_animation_skeleton_animation_pose_local_space, DirectX::XMFLOAT4 *const out_ball_and_socket_joint_rotation_local_space)
 {
     DirectX::XMFLOAT4X4 const ball_and_socket_joint_transform_model_space = internal_calculate_transform_model_space(in_animation_skeleton_joint_parent_indices, in_animation_skeleton_animation_pose_local_space, in_ball_and_socket_joint_animation_skeleton_joint_index);
+
+    DirectX::XMFLOAT4X4 const end_effector_transform_model_space = internal_calculate_transform_model_space(in_animation_skeleton_joint_parent_indices, in_animation_skeleton_animation_pose_local_space, in_end_effector_animation_skeleton_joint_index);
 
     DirectX::XMFLOAT4X4 inout_joints_local_space[1];
     DirectX::XMFLOAT4X4 inout_joints_model_space[1];
@@ -3165,8 +3466,19 @@ static inline void internal_video_detector_pose_ik_one_joint_solve(uint32_t cons
             assert(DirectX::XMVector3EqualInt(DirectX::XMVectorTrueInt(), DirectX::XMVectorLess(DirectX::XMVectorAbs(DirectX::XMVectorSubtract(ball_and_socket_joint_scale_model_space, DirectX::XMVectorSplatOne())), DirectX::XMVectorReplicate(INTERNAL_SCALE_EPSILON))));
         }
 
-        // TODO: do we really need to scale to make sure the translation is high enough?
-        DirectX::XMStoreFloat3(&target_position_model_space, DirectX::XMVectorAdd(ball_and_socket_joint_translation_model_space, DirectX::XMLoadFloat3(&in_target_displacement_model_space)));
+        DirectX::XMVECTOR end_effector_translation_model_space;
+        {
+            DirectX::XMVECTOR end_effector_scale_model_space;
+            DirectX::XMVECTOR end_effector_rotation_model_space;
+            bool directx_xm_matrix_decompose = DirectX::XMMatrixDecompose(&end_effector_scale_model_space, &end_effector_rotation_model_space, &end_effector_translation_model_space, DirectX::XMLoadFloat4x4(&end_effector_transform_model_space));
+            assert(directx_xm_matrix_decompose);
+
+            assert(DirectX::XMVector3EqualInt(DirectX::XMVectorTrueInt(), DirectX::XMVectorLess(DirectX::XMVectorAbs(DirectX::XMVectorSubtract(end_effector_scale_model_space, DirectX::XMVectorSplatOne())), DirectX::XMVectorReplicate(INTERNAL_SCALE_EPSILON))));
+        }
+
+        float target_displacement_model_space_length = DirectX::XMVectorGetX(DirectX::XMVector3Length(DirectX::XMVectorSubtract(end_effector_translation_model_space, ball_and_socket_joint_translation_model_space)));
+
+        DirectX::XMStoreFloat3(&target_position_model_space, DirectX::XMVectorAdd(ball_and_socket_joint_translation_model_space, DirectX::XMVectorScale(DirectX::XMLoadFloat3(&in_normalized_target_displacement_model_space), target_displacement_model_space_length)));
     }
 
     DirectX::XMFLOAT4X4 end_effector_transform_local_space;
@@ -3191,8 +3503,6 @@ static inline void internal_video_detector_pose_ik_one_joint_solve(uint32_t cons
         }
 #endif
 
-        DirectX::XMFLOAT4X4 const end_effector_transform_model_space = internal_calculate_transform_model_space(in_animation_skeleton_joint_parent_indices, in_animation_skeleton_animation_pose_local_space, in_end_effector_animation_skeleton_joint_index);
-
         DirectX::XMVECTOR unused_determinant;
         DirectX::XMStoreFloat4x4(&end_effector_transform_local_space, DirectX::XMMatrixMultiply(DirectX::XMLoadFloat4x4(&end_effector_transform_model_space), DirectX::XMMatrixInverse(&unused_determinant, DirectX::XMLoadFloat4x4(&ball_and_socket_joint_transform_model_space))));
     }
@@ -3212,6 +3522,150 @@ static inline void internal_video_detector_pose_ik_one_joint_solve(uint32_t cons
     }
 
     DirectX::XMStoreFloat4(out_ball_and_socket_joint_rotation_local_space, ball_and_socket_joint_rotation_local_space);
+}
+
+static inline void internal_video_detector_ik_two_joints_solve(uint32_t const in_ball_and_socket_joint_animation_skeleton_joint_index, uint32_t const in_hinge_joint_animation_skeleton_joint_index, uint32_t const in_end_effector_animation_skeleton_joint_index, DirectX::XMFLOAT3 const &in_hinge_joint_axis_local_space, DirectX::XMFLOAT3 const &in_normalized_ball_and_socket_to_hinge_displacement_model_space, DirectX::XMFLOAT3 const &in_normalized_hinge_to_end_effector_displacement_model_space, uint32_t const *const in_animation_skeleton_joint_parent_indices, DirectX::XMFLOAT4X4 const *const in_animation_skeleton_animation_pose_local_space, DirectX::XMFLOAT4 *const out_ball_and_socket_joint_rotation_local_space, DirectX::XMFLOAT4 *const out_hinge_joint_rotation_local_space)
+{
+    DirectX::XMFLOAT4X4 const ball_and_socket_joint_transform_model_space = internal_calculate_transform_model_space(in_animation_skeleton_joint_parent_indices, in_animation_skeleton_animation_pose_local_space, in_ball_and_socket_joint_animation_skeleton_joint_index);
+
+    DirectX::XMFLOAT4X4 const hinge_joint_transform_model_space = internal_calculate_transform_model_space(in_animation_skeleton_joint_parent_indices, in_animation_skeleton_animation_pose_local_space, in_hinge_joint_animation_skeleton_joint_index);
+
+    DirectX::XMFLOAT4X4 const end_effector_transform_model_space = internal_calculate_transform_model_space(in_animation_skeleton_joint_parent_indices, in_animation_skeleton_animation_pose_local_space, in_end_effector_animation_skeleton_joint_index);
+
+    DirectX::XMFLOAT4X4 inout_joints_local_space[2];
+    DirectX::XMFLOAT4X4 inout_joints_model_space[2];
+    inout_joints_local_space[0] = in_animation_skeleton_animation_pose_local_space[in_ball_and_socket_joint_animation_skeleton_joint_index];
+    inout_joints_model_space[0] = ball_and_socket_joint_transform_model_space;
+
+    {
+        DirectX::XMFLOAT4X4 hinge_joint_transform_local_space;
+        if (in_animation_skeleton_joint_parent_indices[in_hinge_joint_animation_skeleton_joint_index] == in_ball_and_socket_joint_animation_skeleton_joint_index)
+        {
+            hinge_joint_transform_local_space = in_animation_skeleton_animation_pose_local_space[in_hinge_joint_animation_skeleton_joint_index];
+        }
+        else
+        {
+#ifndef NDEBUG
+            {
+                bool found_ancestor = false;
+                for (uint32_t current_parent_joint_index = in_animation_skeleton_joint_parent_indices[in_hinge_joint_animation_skeleton_joint_index]; BRX_MOTION_UINT32_INDEX_INVALID != current_parent_joint_index; current_parent_joint_index = in_animation_skeleton_joint_parent_indices[current_parent_joint_index])
+                {
+                    if (in_ball_and_socket_joint_animation_skeleton_joint_index == current_parent_joint_index)
+                    {
+                        found_ancestor = true;
+                        break;
+                    }
+                }
+                assert(found_ancestor);
+            }
+#endif
+
+            DirectX::XMVECTOR unused_determinant;
+            DirectX::XMStoreFloat4x4(&hinge_joint_transform_local_space, DirectX::XMMatrixMultiply(DirectX::XMLoadFloat4x4(&hinge_joint_transform_model_space), DirectX::XMMatrixInverse(&unused_determinant, DirectX::XMLoadFloat4x4(&ball_and_socket_joint_transform_model_space))));
+        }
+
+        inout_joints_local_space[1] = hinge_joint_transform_local_space;
+        inout_joints_model_space[1] = hinge_joint_transform_model_space;
+    }
+
+    DirectX::XMFLOAT3 target_position_model_space;
+    {
+        DirectX::XMVECTOR ball_and_socket_joint_translation_model_space;
+        {
+            DirectX::XMVECTOR ball_and_socket_joint_scale_model_space;
+            DirectX::XMVECTOR ball_and_socket_joint_rotation_model_space;
+            bool directx_xm_matrix_decompose = DirectX::XMMatrixDecompose(&ball_and_socket_joint_scale_model_space, &ball_and_socket_joint_rotation_model_space, &ball_and_socket_joint_translation_model_space, DirectX::XMLoadFloat4x4(&ball_and_socket_joint_transform_model_space));
+            assert(directx_xm_matrix_decompose);
+
+            assert(DirectX::XMVector3EqualInt(DirectX::XMVectorTrueInt(), DirectX::XMVectorLess(DirectX::XMVectorAbs(DirectX::XMVectorSubtract(ball_and_socket_joint_scale_model_space, DirectX::XMVectorSplatOne())), DirectX::XMVectorReplicate(INTERNAL_SCALE_EPSILON))));
+        }
+
+        DirectX::XMVECTOR hinge_joint_translation_model_space;
+        {
+            DirectX::XMVECTOR hinge_joint_scale_model_space;
+            DirectX::XMVECTOR hinge_joint_rotation_model_space;
+            bool directx_xm_matrix_decompose = DirectX::XMMatrixDecompose(&hinge_joint_scale_model_space, &hinge_joint_rotation_model_space, &hinge_joint_translation_model_space, DirectX::XMLoadFloat4x4(&hinge_joint_transform_model_space));
+            assert(directx_xm_matrix_decompose);
+
+            assert(DirectX::XMVector3EqualInt(DirectX::XMVectorTrueInt(), DirectX::XMVectorLess(DirectX::XMVectorAbs(DirectX::XMVectorSubtract(hinge_joint_scale_model_space, DirectX::XMVectorSplatOne())), DirectX::XMVectorReplicate(INTERNAL_SCALE_EPSILON))));
+        }
+
+        DirectX::XMVECTOR end_effector_translation_model_space;
+        {
+            DirectX::XMVECTOR end_effector_scale_model_space;
+            DirectX::XMVECTOR end_effector_rotation_model_space;
+            bool directx_xm_matrix_decompose = DirectX::XMMatrixDecompose(&end_effector_scale_model_space, &end_effector_rotation_model_space, &end_effector_translation_model_space, DirectX::XMLoadFloat4x4(&end_effector_transform_model_space));
+            assert(directx_xm_matrix_decompose);
+
+            assert(DirectX::XMVector3EqualInt(DirectX::XMVectorTrueInt(), DirectX::XMVectorLess(DirectX::XMVectorAbs(DirectX::XMVectorSubtract(end_effector_scale_model_space, DirectX::XMVectorSplatOne())), DirectX::XMVectorReplicate(INTERNAL_SCALE_EPSILON))));
+        }
+
+        float ball_and_socket_to_hinge_displacement_model_space_length = DirectX::XMVectorGetX(DirectX::XMVector3Length(DirectX::XMVectorSubtract(hinge_joint_translation_model_space, ball_and_socket_joint_translation_model_space)));
+
+        float hinge_to_end_effector_displacement_model_space_length = DirectX::XMVectorGetX(DirectX::XMVector3Length(DirectX::XMVectorSubtract(end_effector_translation_model_space, hinge_joint_translation_model_space)));
+
+        DirectX::XMStoreFloat3(&target_position_model_space, DirectX::XMVectorAdd(DirectX::XMVectorAdd(ball_and_socket_joint_translation_model_space, DirectX::XMVectorScale(DirectX::XMLoadFloat3(&in_normalized_ball_and_socket_to_hinge_displacement_model_space), ball_and_socket_to_hinge_displacement_model_space_length)), DirectX::XMVectorScale(DirectX::XMLoadFloat3(&in_normalized_hinge_to_end_effector_displacement_model_space), hinge_to_end_effector_displacement_model_space_length)));
+    }
+
+    DirectX::XMFLOAT4X4 end_effector_transform_local_space;
+    if (in_animation_skeleton_joint_parent_indices[in_end_effector_animation_skeleton_joint_index] == in_hinge_joint_animation_skeleton_joint_index)
+    {
+        end_effector_transform_local_space = in_animation_skeleton_animation_pose_local_space[in_end_effector_animation_skeleton_joint_index];
+    }
+    else
+    {
+#ifndef NDEBUG
+        {
+            bool found_ancestor = false;
+            for (uint32_t current_parent_joint_index = in_animation_skeleton_joint_parent_indices[in_end_effector_animation_skeleton_joint_index]; BRX_MOTION_UINT32_INDEX_INVALID != current_parent_joint_index; current_parent_joint_index = in_animation_skeleton_joint_parent_indices[current_parent_joint_index])
+            {
+                if (in_hinge_joint_animation_skeleton_joint_index == current_parent_joint_index)
+                {
+                    found_ancestor = true;
+                    break;
+                }
+            }
+            assert(found_ancestor);
+        }
+#endif
+
+        DirectX::XMVECTOR unused_determinant;
+        DirectX::XMStoreFloat4x4(&end_effector_transform_local_space, DirectX::XMMatrixMultiply(DirectX::XMLoadFloat4x4(&end_effector_transform_model_space), DirectX::XMMatrixInverse(&unused_determinant, DirectX::XMLoadFloat4x4(&hinge_joint_transform_model_space))));
+    }
+
+    ik_two_joints_solve(1.0F, in_hinge_joint_axis_local_space, -1.0F, 1.0F, 1.0F, target_position_model_space, end_effector_transform_local_space, inout_joints_local_space, inout_joints_model_space);
+
+    {
+        DirectX::XMFLOAT4X4 const &ball_and_socket_joint_transform_local_space = inout_joints_local_space[0];
+
+        DirectX::XMVECTOR ball_and_socket_joint_rotation_local_space;
+        {
+            DirectX::XMVECTOR ball_and_socket_joint_scale_local_space;
+            DirectX::XMVECTOR ball_and_socket_joint_translation_local_space;
+            bool directx_xm_matrix_decompose = DirectX::XMMatrixDecompose(&ball_and_socket_joint_scale_local_space, &ball_and_socket_joint_rotation_local_space, &ball_and_socket_joint_translation_local_space, DirectX::XMLoadFloat4x4(&ball_and_socket_joint_transform_local_space));
+            assert(directx_xm_matrix_decompose);
+
+            assert(DirectX::XMVector3EqualInt(DirectX::XMVectorTrueInt(), DirectX::XMVectorLess(DirectX::XMVectorAbs(DirectX::XMVectorSubtract(ball_and_socket_joint_scale_local_space, DirectX::XMVectorSplatOne())), DirectX::XMVectorReplicate(INTERNAL_SCALE_EPSILON))));
+        }
+
+        DirectX::XMStoreFloat4(out_ball_and_socket_joint_rotation_local_space, ball_and_socket_joint_rotation_local_space);
+    }
+
+    {
+        DirectX::XMFLOAT4X4 const &hinge_joint_transform_local_space = inout_joints_local_space[1];
+
+        DirectX::XMVECTOR hinge_joint_rotation_local_space;
+        {
+            DirectX::XMVECTOR hinge_joint_scale_local_space;
+            DirectX::XMVECTOR hinge_joint_translation_local_space;
+            bool directx_xm_matrix_decompose = DirectX::XMMatrixDecompose(&hinge_joint_scale_local_space, &hinge_joint_rotation_local_space, &hinge_joint_translation_local_space, DirectX::XMLoadFloat4x4(&hinge_joint_transform_local_space));
+            assert(directx_xm_matrix_decompose);
+
+            assert(DirectX::XMVector3EqualInt(DirectX::XMVectorTrueInt(), DirectX::XMVectorLess(DirectX::XMVectorAbs(DirectX::XMVectorSubtract(hinge_joint_scale_local_space, DirectX::XMVectorSplatOne())), DirectX::XMVectorReplicate(INTERNAL_SCALE_EPSILON))));
+        }
+
+        DirectX::XMStoreFloat4(out_hinge_joint_rotation_local_space, hinge_joint_rotation_local_space);
+    }
 }
 
 static inline DirectX::XMFLOAT4X4 internal_calculate_transform_model_space(uint32_t const *const in_animation_skeleton_joint_parent_indices, DirectX::XMFLOAT4X4 const *const in_animation_skeleton_local_space, uint32_t const in_animation_skeleton_joint_index)
@@ -3236,6 +3690,266 @@ static inline DirectX::XMFLOAT4X4 internal_calculate_transform_model_space(uint3
     }
 
     return model_space;
+}
+
+static inline DirectX::XMFLOAT3 internal_calculate_up_local_space(uint32_t const in_animation_skeleton_joint_index, uint32_t const *const in_animation_skeleton_joint_parent_indices, DirectX::XMFLOAT4X4 const *const in_animation_skeleton_bind_pose_local_space)
+{
+    DirectX::XMFLOAT3 up_local_space;
+    if (BRX_MOTION_UINT32_INDEX_INVALID != in_animation_skeleton_joint_index)
+    {
+        DirectX::XMFLOAT4X4 const animation_skeleton_joint_transform_model_space = internal_calculate_transform_model_space(in_animation_skeleton_joint_parent_indices, in_animation_skeleton_bind_pose_local_space, in_animation_skeleton_joint_index);
+
+        DirectX::XMFLOAT3 const up_model_space(0.0F, 1.0F, 0.0F);
+        DirectX::XMVECTOR unused_determinant;
+        DirectX::XMStoreFloat3(&up_local_space, DirectX::XMVector3TransformNormal(DirectX::XMLoadFloat3(&up_model_space), DirectX::XMMatrixInverse(&unused_determinant, DirectX::XMLoadFloat4x4(&animation_skeleton_joint_transform_model_space))));
+    }
+    else
+    {
+        up_local_space = DirectX::XMFLOAT3(0.0F, 1.0F, 0.0F);
+        assert(false);
+    }
+    return up_local_space;
+}
+
+static inline DirectX::XMFLOAT3 internal_calculate_hinge_joint_local_space(uint32_t const in_ball_and_socket_joint_animation_skeleton_joint_index, uint32_t const in_hinge_joint_animation_skeleton_joint_index, uint32_t const in_end_effector_animation_skeleton_joint_index, uint32_t const *const in_animation_skeleton_joint_parent_indices, DirectX::XMFLOAT4X4 const *const in_animation_skeleton_bind_pose_local_space)
+{
+    DirectX::XMFLOAT3 hinge_joint_normal_local_space;
+    if ((BRX_MOTION_UINT32_INDEX_INVALID != in_ball_and_socket_joint_animation_skeleton_joint_index) && (BRX_MOTION_UINT32_INDEX_INVALID != in_hinge_joint_animation_skeleton_joint_index) && (BRX_MOTION_UINT32_INDEX_INVALID != in_end_effector_animation_skeleton_joint_index))
+    {
+        DirectX::XMFLOAT4X4 const ball_and_socket_joint_transform_model_space = internal_calculate_transform_model_space(in_animation_skeleton_joint_parent_indices, in_animation_skeleton_bind_pose_local_space, in_ball_and_socket_joint_animation_skeleton_joint_index);
+
+        DirectX::XMFLOAT4X4 const hinge_joint_transform_model_space = internal_calculate_transform_model_space(in_animation_skeleton_joint_parent_indices, in_animation_skeleton_bind_pose_local_space, in_hinge_joint_animation_skeleton_joint_index);
+
+        DirectX::XMFLOAT4X4 end_effector_transform_local_space;
+        if (in_animation_skeleton_joint_parent_indices[in_end_effector_animation_skeleton_joint_index] == in_hinge_joint_animation_skeleton_joint_index)
+        {
+            end_effector_transform_local_space = in_animation_skeleton_bind_pose_local_space[in_end_effector_animation_skeleton_joint_index];
+        }
+        else
+        {
+#ifndef NDEBUG
+            {
+                bool found_ancestor = false;
+                for (uint32_t current_parent_joint_index = in_animation_skeleton_joint_parent_indices[in_end_effector_animation_skeleton_joint_index]; BRX_MOTION_UINT32_INDEX_INVALID != current_parent_joint_index; current_parent_joint_index = in_animation_skeleton_joint_parent_indices[current_parent_joint_index])
+                {
+                    if (in_hinge_joint_animation_skeleton_joint_index == current_parent_joint_index)
+                    {
+                        found_ancestor = true;
+                        break;
+                    }
+                }
+                assert(found_ancestor);
+            }
+#endif
+
+            DirectX::XMFLOAT4X4 const end_effector_transform_model_space = internal_calculate_transform_model_space(in_animation_skeleton_joint_parent_indices, in_animation_skeleton_bind_pose_local_space, in_end_effector_animation_skeleton_joint_index);
+
+            DirectX::XMVECTOR unused_determinant;
+            DirectX::XMStoreFloat4x4(&end_effector_transform_local_space, DirectX::XMMatrixMultiply(DirectX::XMLoadFloat4x4(&end_effector_transform_model_space), DirectX::XMMatrixInverse(&unused_determinant, DirectX::XMLoadFloat4x4(&hinge_joint_transform_model_space))));
+        }
+
+        DirectX::XMVECTOR ball_and_socket_joint_hinge_joint_local_space_translation;
+        {
+
+            DirectX::XMVECTOR unused_determinant;
+            DirectX::XMMATRIX ball_and_socket_joint_hinge_joint_local_space_transform = DirectX::XMMatrixMultiply(DirectX::XMLoadFloat4x4(&ball_and_socket_joint_transform_model_space), DirectX::XMMatrixInverse(&unused_determinant, DirectX::XMLoadFloat4x4(&hinge_joint_transform_model_space)));
+
+            DirectX::XMVECTOR ball_and_socket_joint_hinge_joint_local_space_scale;
+            DirectX::XMVECTOR ball_and_socket_joint_hinge_joint_local_space_rotation;
+            bool directx_xm_matrix_decompose = DirectX::XMMatrixDecompose(&ball_and_socket_joint_hinge_joint_local_space_scale, &ball_and_socket_joint_hinge_joint_local_space_rotation, &ball_and_socket_joint_hinge_joint_local_space_translation, ball_and_socket_joint_hinge_joint_local_space_transform);
+            assert(directx_xm_matrix_decompose);
+
+            assert(DirectX::XMVector3EqualInt(DirectX::XMVectorTrueInt(), DirectX::XMVectorLess(DirectX::XMVectorAbs(DirectX::XMVectorSubtract(ball_and_socket_joint_hinge_joint_local_space_scale, DirectX::XMVectorSplatOne())), DirectX::XMVectorReplicate(INTERNAL_SCALE_EPSILON))));
+        }
+
+        DirectX::XMVECTOR end_effector_hinge_joint_local_space_translation;
+        {
+            DirectX::XMVECTOR end_effector_hinge_joint_local_space_scale;
+            DirectX::XMVECTOR end_effector_hinge_joint_local_space_rotation;
+            bool directx_xm_matrix_decompose = DirectX::XMMatrixDecompose(&end_effector_hinge_joint_local_space_scale, &end_effector_hinge_joint_local_space_rotation, &end_effector_hinge_joint_local_space_translation, DirectX::XMLoadFloat4x4(&end_effector_transform_local_space));
+            assert(directx_xm_matrix_decompose);
+
+            assert(DirectX::XMVector3EqualInt(DirectX::XMVectorTrueInt(), DirectX::XMVectorLess(DirectX::XMVectorAbs(DirectX::XMVectorSubtract(end_effector_hinge_joint_local_space_scale, DirectX::XMVectorSplatOne())), DirectX::XMVectorReplicate(INTERNAL_SCALE_EPSILON))));
+        }
+
+        DirectX::XMStoreFloat3(&hinge_joint_normal_local_space, DirectX::XMVector3Normalize(DirectX::XMVector3Cross(ball_and_socket_joint_hinge_joint_local_space_translation, end_effector_hinge_joint_local_space_translation)));
+    }
+    else
+    {
+        hinge_joint_normal_local_space = DirectX::XMFLOAT3(-1.0F, 0.0F, 0.0F);
+        assert(false);
+    }
+
+    return hinge_joint_normal_local_space;
+}
+
+static inline DirectX::XMFLOAT3 internal_calculate_twist_axis_parent_local_space(uint32_t const in_parent_animation_skeleton_joint_index, uint32_t const in_child_animation_skeleton_joint_index, uint32_t const *const in_animation_skeleton_joint_parent_indices, DirectX::XMFLOAT4X4 const *const in_animation_skeleton_bind_pose_local_space)
+{
+    DirectX::XMFLOAT3 twist_axis_parent_local_space;
+    if ((BRX_MOTION_UINT32_INDEX_INVALID != in_parent_animation_skeleton_joint_index) && (BRX_MOTION_UINT32_INDEX_INVALID != in_child_animation_skeleton_joint_index))
+    {
+        DirectX::XMFLOAT4X4 const parent_joint_transform_model_space = internal_calculate_transform_model_space(in_animation_skeleton_joint_parent_indices, in_animation_skeleton_bind_pose_local_space, in_parent_animation_skeleton_joint_index);
+
+        DirectX::XMFLOAT4X4 const child_joint_transform_model_space = internal_calculate_transform_model_space(in_animation_skeleton_joint_parent_indices, in_animation_skeleton_bind_pose_local_space, in_child_animation_skeleton_joint_index);
+
+        DirectX::XMVECTOR child_joint_parent_joint_local_space_translation;
+        {
+
+            DirectX::XMVECTOR unused_determinant;
+            DirectX::XMMATRIX child_joint_parent_joint_local_space_transform = DirectX::XMMatrixMultiply(DirectX::XMLoadFloat4x4(&child_joint_transform_model_space), DirectX::XMMatrixInverse(&unused_determinant, DirectX::XMLoadFloat4x4(&parent_joint_transform_model_space)));
+
+            DirectX::XMVECTOR child_joint_parent_joint_local_space_scale;
+            DirectX::XMVECTOR child_joint_parent_joint_local_space_rotation;
+            bool directx_xm_matrix_decompose = DirectX::XMMatrixDecompose(&child_joint_parent_joint_local_space_scale, &child_joint_parent_joint_local_space_rotation, &child_joint_parent_joint_local_space_translation, child_joint_parent_joint_local_space_transform);
+            assert(directx_xm_matrix_decompose);
+
+            assert(DirectX::XMVector3EqualInt(DirectX::XMVectorTrueInt(), DirectX::XMVectorLess(DirectX::XMVectorAbs(DirectX::XMVectorSubtract(child_joint_parent_joint_local_space_scale, DirectX::XMVectorSplatOne())), DirectX::XMVectorReplicate(INTERNAL_SCALE_EPSILON))));
+        }
+
+        DirectX::XMStoreFloat3(&twist_axis_parent_local_space, DirectX::XMVector3Normalize(child_joint_parent_joint_local_space_translation));
+    }
+    else
+    {
+        twist_axis_parent_local_space = DirectX::XMFLOAT3(0.0F, -1.0F, 0.0F);
+        assert(false);
+    }
+
+    return twist_axis_parent_local_space;
+}
+
+static inline DirectX::XMFLOAT3 internal_calculate_twist_axis_child_local_space(uint32_t const in_parent_animation_skeleton_joint_index, uint32_t const in_child_animation_skeleton_joint_index, uint32_t const *const in_animation_skeleton_joint_parent_indices, DirectX::XMFLOAT4X4 const *const in_animation_skeleton_bind_pose_local_space)
+{
+    DirectX::XMFLOAT3 twist_axis_child_local_space;
+    if ((BRX_MOTION_UINT32_INDEX_INVALID != in_parent_animation_skeleton_joint_index) && (BRX_MOTION_UINT32_INDEX_INVALID != in_child_animation_skeleton_joint_index))
+    {
+        DirectX::XMFLOAT4X4 const parent_joint_transform_model_space = internal_calculate_transform_model_space(in_animation_skeleton_joint_parent_indices, in_animation_skeleton_bind_pose_local_space, in_parent_animation_skeleton_joint_index);
+
+        DirectX::XMFLOAT4X4 const child_joint_transform_model_space = internal_calculate_transform_model_space(in_animation_skeleton_joint_parent_indices, in_animation_skeleton_bind_pose_local_space, in_child_animation_skeleton_joint_index);
+
+        DirectX::XMVECTOR parent_joint_child_joint_local_space_translation;
+        {
+
+            DirectX::XMVECTOR unused_determinant;
+            DirectX::XMMATRIX parent_joint_child_joint_local_space_transform = DirectX::XMMatrixMultiply(DirectX::XMLoadFloat4x4(&parent_joint_transform_model_space), DirectX::XMMatrixInverse(&unused_determinant, DirectX::XMLoadFloat4x4(&child_joint_transform_model_space)));
+
+            DirectX::XMVECTOR parent_joint_child_joint_local_space_scale;
+            DirectX::XMVECTOR parent_joint_child_joint_local_space_rotation;
+            bool directx_xm_matrix_decompose = DirectX::XMMatrixDecompose(&parent_joint_child_joint_local_space_scale, &parent_joint_child_joint_local_space_rotation, &parent_joint_child_joint_local_space_translation, parent_joint_child_joint_local_space_transform);
+            assert(directx_xm_matrix_decompose);
+
+            assert(DirectX::XMVector3EqualInt(DirectX::XMVectorTrueInt(), DirectX::XMVectorLess(DirectX::XMVectorAbs(DirectX::XMVectorSubtract(parent_joint_child_joint_local_space_scale, DirectX::XMVectorSplatOne())), DirectX::XMVectorReplicate(INTERNAL_SCALE_EPSILON))));
+        }
+
+        DirectX::XMStoreFloat3(&twist_axis_child_local_space, DirectX::XMVector3Normalize(parent_joint_child_joint_local_space_translation));
+    }
+    else
+    {
+        twist_axis_child_local_space = DirectX::XMFLOAT3(0.0F, 1.0F, 0.0F);
+        assert(false);
+    }
+
+    return twist_axis_child_local_space;
+}
+
+static inline DirectX::XMFLOAT4 internal_quaternion_get_twist(DirectX::XMFLOAT4 const &in_quaternion, DirectX::XMFLOAT3 const &in_axis)
+{
+    assert(std::abs(DirectX::XMVectorGetX(DirectX::XMQuaternionLength(DirectX::XMLoadFloat4(&in_quaternion))) - 1.0F) < INTERNAL_ROTATION_EPSILON);
+    assert(std::abs(DirectX::XMVectorGetX(DirectX::XMVector3Length(DirectX::XMLoadFloat3(&in_axis))) - 1.0F) < INTERNAL_ROTATION_EPSILON);
+
+    DirectX::XMFLOAT4 not_normalized_twist;
+    {
+        DirectX::XMFLOAT3 const quaternion_vector(in_quaternion.x, in_quaternion.y, in_quaternion.z);
+
+        float const quaternion_scale = in_quaternion.w;
+
+        DirectX::XMVECTOR simd_axis = DirectX::XMLoadFloat3(&in_axis);
+
+        DirectX::XMFLOAT3 not_normalized_twist_vector;
+        DirectX::XMStoreFloat3(&not_normalized_twist_vector, DirectX::XMVectorScale(simd_axis, DirectX::XMVectorGetX(DirectX::XMVector3Dot(DirectX::XMLoadFloat3(&quaternion_vector), simd_axis))));
+
+        float const not_normalized_twist_scale = quaternion_scale;
+
+        not_normalized_twist = DirectX::XMFLOAT4(not_normalized_twist_vector.x, not_normalized_twist_vector.y, not_normalized_twist_vector.z, not_normalized_twist_scale);
+    }
+
+    DirectX::XMFLOAT4 twist;
+    {
+        DirectX::XMVECTOR simd_not_normalized_twist = DirectX::XMLoadFloat4(&not_normalized_twist);
+
+        float twist_length = DirectX::XMVectorGetX(DirectX::XMVector4Length(simd_not_normalized_twist));
+        if (twist_length > INTERNAL_ROTATION_EPSILON)
+        {
+            DirectX::XMStoreFloat4(&twist, DirectX::XMVectorScale(simd_not_normalized_twist, 1.0F / twist_length));
+        }
+        else
+        {
+            assert(false);
+            DirectX::XMStoreFloat4(&twist, DirectX::XMQuaternionIdentity());
+        }
+    }
+
+    return twist;
+}
+
+static inline DirectX::XMFLOAT4 internal_quaternion_get_swing(DirectX::XMFLOAT4 const &in_quaternion, DirectX::XMFLOAT4 const &in_twist)
+{
+    assert(std::abs(DirectX::XMVectorGetX(DirectX::XMQuaternionLength(DirectX::XMLoadFloat4(&in_quaternion))) - 1.0F) < INTERNAL_ROTATION_EPSILON);
+    assert(std::abs(DirectX::XMVectorGetX(DirectX::XMQuaternionLength(DirectX::XMLoadFloat4(&in_twist))) - 1.0F) < INTERNAL_ROTATION_EPSILON);
+
+    // https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation#Alternative_conventions
+    //
+    // Hamilton Multiplication Convention
+    // q = s * t
+    // s = q * t^-1
+    //
+    // Shuster Multiplication Convention
+    // DirectXMath
+    // s = t^-1 * q
+
+    DirectX::XMFLOAT4 not_normalized_swing;
+    DirectX::XMStoreFloat4(&not_normalized_swing, DirectX::XMQuaternionMultiply(DirectX::XMQuaternionConjugate(DirectX::XMLoadFloat4(&in_twist)), DirectX::XMLoadFloat4(&in_quaternion)));
+
+    DirectX::XMFLOAT4 swing;
+    {
+        DirectX::XMVECTOR simd_not_normalized_swing = DirectX::XMLoadFloat4(&not_normalized_swing);
+
+        float swing_length = DirectX::XMVectorGetX(DirectX::XMVector4Length(simd_not_normalized_swing));
+        if (swing_length > INTERNAL_ROTATION_EPSILON)
+        {
+            DirectX::XMStoreFloat4(&swing, DirectX::XMVectorScale(simd_not_normalized_swing, 1.0F / swing_length));
+        }
+        else
+        {
+            assert(false);
+            DirectX::XMStoreFloat4(&swing, DirectX::XMQuaternionIdentity());
+        }
+    }
+
+    return swing;
+}
+
+static inline DirectX::XMFLOAT4 internal_quaternion_from_swing_twist(DirectX::XMFLOAT4 const &in_swing, DirectX::XMFLOAT4 const &in_twist)
+{
+    assert(std::abs(DirectX::XMVectorGetX(DirectX::XMQuaternionLength(DirectX::XMLoadFloat4(&in_swing))) - 1.0F) < INTERNAL_ROTATION_EPSILON);
+    assert(std::abs(DirectX::XMVectorGetX(DirectX::XMQuaternionLength(DirectX::XMLoadFloat4(&in_twist))) - 1.0F) < INTERNAL_ROTATION_EPSILON);
+
+    // https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation#Alternative_conventions
+    //
+    // Hamilton Multiplication Convention
+    // q = s * t
+    //
+    // Shuster Multiplication Convention
+    // DirectXMath
+    // q = t * s
+
+    DirectX::XMFLOAT4 not_normalized_quaternion;
+    DirectX::XMStoreFloat4(&not_normalized_quaternion, DirectX::XMQuaternionMultiply(DirectX::XMLoadFloat4(&in_twist), DirectX::XMLoadFloat4(&in_swing)));
+
+    assert(std::abs(DirectX::XMVectorGetX(DirectX::XMQuaternionLength(DirectX::XMLoadFloat4(&not_normalized_quaternion))) - 1.0F) < INTERNAL_ROTATION_EPSILON);
+
+    DirectX::XMFLOAT4 quaternion;
+    DirectX::XMStoreFloat4(&quaternion, DirectX::XMQuaternionNormalize(DirectX::XMLoadFloat4(&not_normalized_quaternion)));
+    return quaternion;
 }
 
 class internal_physics_context_scope
