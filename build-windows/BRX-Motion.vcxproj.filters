@@ -51,6 +51,9 @@
     <ClCompile Include="..\source\brx_motion_animation.cpp">
       <Filter>source</Filter>
     </ClCompile>
+    <ClCompile Include="..\source\brx_motion_vmc_motion_receiver.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="BRX-Motion.def">
@@ -85,7 +88,16 @@
     <ClInclude Include="..\source\brx_motion_animation.h">
       <Filter>source</Filter>
     </ClInclude>
-    <ClInclude Include="..\source\brx_motion_video_detector.h">
+    <ClInclude Include="..\source\brx_motion_motion_capture.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\brx_motion_video_capture.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\brx_motion_vmc_motion_receiver.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\brx_motion_motion_receiver.h">
       <Filter>source</Filter>
     </ClInclude>
   </ItemGroup>

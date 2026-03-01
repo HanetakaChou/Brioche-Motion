@@ -17,7 +17,7 @@
 
 #include "brx_motion_media_pipe_video_detector.h"
 #include "internal_tflite.h"
-#include "brx_motion_opencv_video_capture.h"
+#include "brx_motion_video_capture.h"
 #include "../../Brioche-Window-System-Integration/include/brx_wsi.h"
 #include "../../McRT-Malloc/include/mcrt_tick_count.h"
 #include "../../McRT-Malloc/include/mcrt_malloc.h"
@@ -36,10 +36,6 @@
 static constexpr uint32_t const INTERNAL_MEIDA_PIPE_MAX_POSE_COUNT = 5U;
 static constexpr uint32_t const INTERNAL_MEIDA_PIPE_MAX_FACE_COUNT = 5U;
 static constexpr uint32_t const INTERNAL_MEIDA_PIPE_MAX_HAND_COUNT = 5U;
-
-static constexpr float const INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE = 0.25F;
-static constexpr float const INTERNAL_MEIDA_PIPE_MIN_FACE_CONFIDENCE = 0.25F;
-static constexpr float const INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE = 0.25F;
 
 // https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker#models
 enum
@@ -227,33 +223,33 @@ static inline uint32_t internal_get_face_skeleton_joint_index(BRX_MOTION_SKELETO
 
 static inline uint32_t internal_get_hand_skeleton_joint_index(BRX_MOTION_SKELETON_JOINT_NAME skeleton_joint_name);
 
-extern "C" brx_motion_video_detector *brx_motion_create_video_detector(uint32_t pose_count, uint32_t face_count, uint32_t hand_count, bool force_gpu, brx_motion_video_capture *video_capture)
+extern "C" brx_motion_video_detector *brx_motion_create_video_detector(uint32_t pose_count, uint32_t face_count, uint32_t hand_count, float pose_confidence_threshold, float face_confidence_threshold, float hand_confidence_threshold, bool force_gpu, brx_motion_video_capture *video_capture)
 {
-    void *new_unwrapped_video_detector_base = mcrt_malloc(sizeof(brx_motion_media_pipe_video_detector), alignof(brx_motion_media_pipe_video_detector));
-    assert(NULL != new_unwrapped_video_detector_base);
+    void *new_unwrapped_motion_capture_base = mcrt_malloc(sizeof(brx_motion_media_pipe_video_detector), alignof(brx_motion_media_pipe_video_detector));
+    assert(NULL != new_unwrapped_motion_capture_base);
 
-    brx_motion_media_pipe_video_detector *new_unwrapped_video_detector = new (new_unwrapped_video_detector_base) brx_motion_media_pipe_video_detector{};
-    if (new_unwrapped_video_detector->init(pose_count, face_count, hand_count, force_gpu, video_capture))
+    brx_motion_media_pipe_video_detector *new_unwrapped_motion_capture = new (new_unwrapped_motion_capture_base) brx_motion_media_pipe_video_detector{};
+    if (new_unwrapped_motion_capture->init(pose_count, face_count, hand_count, pose_confidence_threshold, face_confidence_threshold, hand_confidence_threshold, force_gpu, video_capture))
     {
-        return new_unwrapped_video_detector;
+        return new_unwrapped_motion_capture;
     }
     else
     {
-        new_unwrapped_video_detector->~brx_motion_media_pipe_video_detector();
-        mcrt_free(new_unwrapped_video_detector);
+        new_unwrapped_motion_capture->~brx_motion_media_pipe_video_detector();
+        mcrt_free(new_unwrapped_motion_capture);
         return NULL;
     }
 }
 
-extern "C" void brx_motion_destroy_video_detector(brx_motion_video_detector *wrapped_video_detector)
+extern "C" void brx_motion_destroy_video_detector(brx_motion_video_detector *wrapped_motion_capture)
 {
-    assert(NULL != wrapped_video_detector);
-    internal_brx_motion_video_detector *const release_unwrapped_video_detector = static_cast<internal_brx_motion_video_detector *>(wrapped_video_detector);
+    assert(NULL != wrapped_motion_capture);
+    internal_brx_motion_motion_capture *const release_unwrapped_motion_capture = static_cast<internal_brx_motion_motion_capture *>(static_cast<brx_motion_media_pipe_video_detector *>(wrapped_motion_capture));
 
-    release_unwrapped_video_detector->release();
+    release_unwrapped_motion_capture->release();
 }
 
-brx_motion_media_pipe_video_detector::brx_motion_media_pipe_video_detector() : m_ref_count(0U), m_pose_count(0U), m_face_count(0U), m_hand_count(0U), m_pose_landmarker(NULL), m_face_landmarker(NULL), m_hand_landmarker(NULL), m_delta_time(0.0), m_timestamp_ms(0), m_enable_debug_renderer(false), m_debug_renderer_window_original(NULL), m_debug_renderer_window_modified(NULL), m_input_video_capture(NULL)
+brx_motion_media_pipe_video_detector::brx_motion_media_pipe_video_detector() : m_ref_count(0U), m_pose_count(0U), m_face_count(0U), m_hand_count(0U), m_pose_confidence_threshold(0.125F), m_face_confidence_threshold(0.125F), m_hand_confidence_threshold(0.125F), m_pose_landmarker(NULL), m_face_landmarker(NULL), m_hand_landmarker(NULL), m_delta_time(0.0), m_timestamp_ms(0), m_enable_debug_renderer(false), m_debug_renderer_window(NULL), m_input_video_capture(NULL)
 {
 }
 
@@ -277,11 +273,7 @@ brx_motion_media_pipe_video_detector::~brx_motion_media_pipe_video_detector()
     assert(NULL == this->m_input_video_capture);
 }
 
-extern void internal_retain_video_capture(brx_motion_video_capture *wrapped_video_capture);
-
-extern void internal_release_video_capture(brx_motion_video_capture *wrapped_video_capture);
-
-bool brx_motion_media_pipe_video_detector::init(uint32_t pose_count, uint32_t face_count, uint32_t hand_count, bool force_gpu, brx_motion_video_capture const *video_capture)
+bool brx_motion_media_pipe_video_detector::init(uint32_t pose_count, uint32_t face_count, uint32_t hand_count, float pose_confidence_threshold, float face_confidence_threshold, float hand_confidence_threshold, bool force_gpu, brx_motion_video_capture const *video_capture)
 {
     assert(0U == this->m_ref_count);
     this->m_ref_count = 1U;
@@ -302,18 +294,21 @@ bool brx_motion_media_pipe_video_detector::init(uint32_t pose_count, uint32_t fa
     assert(0U == this->m_pose_count);
     this->m_pose_count = std::min(std::max(0U, pose_count), INTERNAL_MEIDA_PIPE_MAX_POSE_COUNT);
 
+    assert(0.125F == this->m_pose_confidence_threshold);
+    this->m_pose_confidence_threshold = std::min(std::max(0.01F, pose_confidence_threshold), 0.99F);
+
     if ((!has_error) && (this->m_pose_count > 0U))
     {
         {
-            PoseLandmarkerOptions options;
+            PoseLandmarkerOptions options{};
             options.base_options.model_asset_buffer = reinterpret_cast<char const *>(brx_motion_mediapipe_model_asset_get_pose_landmarker_task_base());
             options.base_options.model_asset_buffer_count = static_cast<unsigned int>(brx_motion_mediapipe_model_asset_get_pose_landmarker_task_size());
             options.base_options.model_asset_path = NULL;
             options.running_mode = VIDEO;
             options.num_poses = static_cast<int>(this->m_pose_count);
-            options.min_pose_detection_confidence = INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE;
-            options.min_pose_presence_confidence = INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE;
-            options.min_tracking_confidence = INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE;
+            options.min_pose_detection_confidence = this->m_pose_confidence_threshold;
+            options.min_pose_presence_confidence = this->m_pose_confidence_threshold;
+            options.min_tracking_confidence = this->m_pose_confidence_threshold;
             options.output_segmentation_masks = false;
             options.result_callback = NULL;
 
@@ -329,9 +324,9 @@ bool brx_motion_media_pipe_video_detector::init(uint32_t pose_count, uint32_t fa
             this->m_poses_skeleton_joint_translations_model_space.resize(this->m_pose_count);
             for (uint32_t pose_index = 0U; pose_index < this->m_pose_count; ++pose_index)
             {
-                std::array<bool, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT> &pose_skeleton_joint_translations_model_space_valid = this->m_poses_skeleton_joint_translations_model_space_valid[pose_index];
-                std::array<DirectX::XMFLOAT3, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT> &pose_skeleton_joint_translations_model_space = this->m_poses_skeleton_joint_translations_model_space[pose_index];
-                for (uint32_t pose_skeleton_joint_name_index = 0U; pose_skeleton_joint_name_index < INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT; ++pose_skeleton_joint_name_index)
+                std::array<bool, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_COUNT> &pose_skeleton_joint_translations_model_space_valid = this->m_poses_skeleton_joint_translations_model_space_valid[pose_index];
+                std::array<DirectX::XMFLOAT3, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_COUNT> &pose_skeleton_joint_translations_model_space = this->m_poses_skeleton_joint_translations_model_space[pose_index];
+                for (uint32_t pose_skeleton_joint_name_index = 0U; pose_skeleton_joint_name_index < INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_COUNT; ++pose_skeleton_joint_name_index)
                 {
                     pose_skeleton_joint_translations_model_space_valid[pose_skeleton_joint_name_index] = false;
                     DirectX::XMStoreFloat3(&pose_skeleton_joint_translations_model_space[pose_skeleton_joint_name_index], DirectX::XMVectorZero());
@@ -348,18 +343,21 @@ bool brx_motion_media_pipe_video_detector::init(uint32_t pose_count, uint32_t fa
     assert(0U == this->m_face_count);
     this->m_face_count = std::min(std::max(0U, face_count), INTERNAL_MEIDA_PIPE_MAX_FACE_COUNT);
 
+    assert(0.125F == this->m_face_confidence_threshold);
+    this->m_face_confidence_threshold = std::min(std::max(0.01F, face_confidence_threshold), 0.99F);
+
     if ((!has_error) && (this->m_face_count > 0U))
     {
         {
-            FaceLandmarkerOptions options;
+            FaceLandmarkerOptions options{};
             options.base_options.model_asset_buffer = reinterpret_cast<char const *>(brx_motion_mediapipe_model_asset_get_face_landmarker_task_base());
             options.base_options.model_asset_buffer_count = static_cast<unsigned int>(brx_motion_mediapipe_model_asset_get_face_landmarker_task_size());
             options.base_options.model_asset_path = NULL;
             options.running_mode = VIDEO;
             options.num_faces = static_cast<int>(this->m_face_count);
-            options.min_face_detection_confidence = INTERNAL_MEIDA_PIPE_MIN_FACE_CONFIDENCE;
-            options.min_face_presence_confidence = INTERNAL_MEIDA_PIPE_MIN_FACE_CONFIDENCE;
-            options.min_tracking_confidence = INTERNAL_MEIDA_PIPE_MIN_FACE_CONFIDENCE;
+            options.min_face_detection_confidence = this->m_face_confidence_threshold;
+            options.min_face_presence_confidence = this->m_face_confidence_threshold;
+            options.min_tracking_confidence = this->m_face_confidence_threshold;
             options.output_face_blendshapes = true;
             options.output_facial_transformation_matrixes = true;
             options.result_callback = NULL;
@@ -385,8 +383,8 @@ bool brx_motion_media_pipe_video_detector::init(uint32_t pose_count, uint32_t fa
             this->m_faces_morph_joint_weights.resize(this->m_face_count);
             for (uint32_t face_index = 0U; face_index < this->m_face_count; ++face_index)
             {
-                std::array<DirectX::XMFLOAT4, INTERNAL_VIDEO_DETECTOR_FACE_MORPH_JOINT_NAME_COUNT> &face_morph_joint_weights = this->m_faces_morph_joint_weights[face_index];
-                for (uint32_t face_morph_joint_name_index = 0U; face_morph_joint_name_index < INTERNAL_VIDEO_DETECTOR_FACE_MORPH_JOINT_NAME_COUNT; ++face_morph_joint_name_index)
+                std::array<DirectX::XMFLOAT4, INTERNAL_MOTION_CAPTURE_FACE_MORPH_JOINT_NAME_COUNT> &face_morph_joint_weights = this->m_faces_morph_joint_weights[face_index];
+                for (uint32_t face_morph_joint_name_index = 0U; face_morph_joint_name_index < INTERNAL_MOTION_CAPTURE_FACE_MORPH_JOINT_NAME_COUNT; ++face_morph_joint_name_index)
                 {
                     DirectX::XMStoreFloat4(&face_morph_joint_weights[face_morph_joint_name_index], DirectX::XMVectorZero());
                 }
@@ -396,8 +394,8 @@ bool brx_motion_media_pipe_video_detector::init(uint32_t pose_count, uint32_t fa
             this->m_faces_skeleton_joint_rotations.resize(this->m_face_count);
             for (uint32_t face_index = 0U; face_index < this->m_face_count; ++face_index)
             {
-                std::array<DirectX::XMFLOAT4, INTERNAL_VIDEO_DETECTOR_FACE_SKELETON_JOINT_NAME_COUNT> &face_skeleton_joint_rotations = this->m_faces_skeleton_joint_rotations[face_index];
-                for (uint32_t face_skeleton_joint_name_index = 0U; face_skeleton_joint_name_index < INTERNAL_VIDEO_DETECTOR_FACE_SKELETON_JOINT_NAME_COUNT; ++face_skeleton_joint_name_index)
+                std::array<DirectX::XMFLOAT4, INTERNAL_MOTION_CAPTURE_FACE_SKELETON_JOINT_NAME_COUNT> &face_skeleton_joint_rotations = this->m_faces_skeleton_joint_rotations[face_index];
+                for (uint32_t face_skeleton_joint_name_index = 0U; face_skeleton_joint_name_index < INTERNAL_MOTION_CAPTURE_FACE_SKELETON_JOINT_NAME_COUNT; ++face_skeleton_joint_name_index)
                 {
                     DirectX::XMStoreFloat4(&face_skeleton_joint_rotations[face_skeleton_joint_name_index], DirectX::XMQuaternionIdentity());
                 }
@@ -413,17 +411,20 @@ bool brx_motion_media_pipe_video_detector::init(uint32_t pose_count, uint32_t fa
     assert(0U == this->m_hand_count);
     this->m_hand_count = std::min(std::max(0U, hand_count), INTERNAL_MEIDA_PIPE_MAX_HAND_COUNT);
 
+    assert(0.125F == this->m_hand_confidence_threshold);
+    this->m_hand_confidence_threshold = std::min(std::max(0.01F, hand_confidence_threshold), 0.99F);
+
     if ((!has_error) && (this->m_hand_count > 0U))
     {
         {
-            HandLandmarkerOptions options;
+            HandLandmarkerOptions options{};
             options.base_options.model_asset_buffer = reinterpret_cast<char const *>(brx_motion_mediapipe_model_asset_get_hand_landmarker_task_base());
             options.base_options.model_asset_buffer_count = static_cast<unsigned int>(brx_motion_mediapipe_model_asset_get_hand_landmarker_task_size());
             options.base_options.model_asset_path = NULL;
             options.running_mode = VIDEO;
-            options.min_hand_detection_confidence = INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE;
-            options.min_hand_presence_confidence = INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE;
-            options.min_tracking_confidence = INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE;
+            options.min_hand_detection_confidence = this->m_hand_confidence_threshold;
+            options.min_hand_presence_confidence = this->m_hand_confidence_threshold;
+            options.min_tracking_confidence = this->m_hand_confidence_threshold;
             options.num_hands = 2U * static_cast<int>(this->m_hand_count);
             options.result_callback = NULL;
 
@@ -439,9 +440,9 @@ bool brx_motion_media_pipe_video_detector::init(uint32_t pose_count, uint32_t fa
             this->m_hands_skeleton_joint_translations_model_space.resize(this->m_hand_count);
             for (uint32_t hand_index = 0U; hand_index < this->m_hand_count; ++hand_index)
             {
-                std::array<bool, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT> &hand_skeleton_joint_translations_model_space_valid = this->m_hands_skeleton_joint_translations_model_space_valid[hand_index];
-                std::array<DirectX::XMFLOAT3, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT> &hand_skeleton_joint_translations_model_space = this->m_hands_skeleton_joint_translations_model_space[hand_index];
-                for (uint32_t hand_skeleton_joint_name_index = 0U; hand_skeleton_joint_name_index < INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT; ++hand_skeleton_joint_name_index)
+                std::array<bool, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_COUNT> &hand_skeleton_joint_translations_model_space_valid = this->m_hands_skeleton_joint_translations_model_space_valid[hand_index];
+                std::array<DirectX::XMFLOAT3, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_COUNT> &hand_skeleton_joint_translations_model_space = this->m_hands_skeleton_joint_translations_model_space[hand_index];
+                for (uint32_t hand_skeleton_joint_name_index = 0U; hand_skeleton_joint_name_index < INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_COUNT; ++hand_skeleton_joint_name_index)
                 {
                     hand_skeleton_joint_translations_model_space_valid[hand_skeleton_joint_name_index] = false;
                     DirectX::XMStoreFloat3(&hand_skeleton_joint_translations_model_space[hand_skeleton_joint_name_index], DirectX::XMVectorZero());
@@ -460,7 +461,7 @@ bool brx_motion_media_pipe_video_detector::init(uint32_t pose_count, uint32_t fa
     if (!has_error)
     {
         assert(NULL == this->m_input_video_capture);
-        internal_retain_video_capture(const_cast<brx_motion_video_capture *>(video_capture));
+        static_cast<internal_brx_motion_video_capture *>(const_cast<brx_motion_video_capture *>(video_capture))->retain();
         this->m_input_video_capture = video_capture;
 
         return true;
@@ -562,18 +563,14 @@ void brx_motion_media_pipe_video_detector::uninit()
     assert(0U == this->m_ref_count);
 
     assert(NULL != this->m_input_video_capture);
-    internal_release_video_capture(const_cast<brx_motion_video_capture *>(this->m_input_video_capture));
+    static_cast<internal_brx_motion_video_capture *>(const_cast<brx_motion_video_capture *>(this->m_input_video_capture))->release();
     this->m_input_video_capture = NULL;
 
     if (this->m_enable_debug_renderer)
     {
-        assert(NULL != this->m_debug_renderer_window_original);
-        brx_wsi_destroy_image_window(this->m_debug_renderer_window_original);
-        this->m_debug_renderer_window_original = NULL;
-
-        assert(NULL != this->m_debug_renderer_window_modified);
-        brx_wsi_destroy_image_window(this->m_debug_renderer_window_modified);
-        this->m_debug_renderer_window_modified = NULL;
+        assert(NULL != this->m_debug_renderer_window);
+        brx_wsi_destroy_image_window(this->m_debug_renderer_window);
+        this->m_debug_renderer_window = NULL;
 
         this->m_enable_debug_renderer = false;
     }
@@ -676,6 +673,21 @@ inline uint32_t brx_motion_media_pipe_video_detector::internal_release()
     return this->m_ref_count;
 }
 
+brx_motion_video_detector *brx_motion_media_pipe_video_detector::get_video_detector()
+{
+    return static_cast<brx_motion_video_detector *>(this);
+}
+
+brx_motion_motion_receiver *brx_motion_media_pipe_video_detector::get_motion_receiver()
+{
+    return NULL;
+}
+
+brx_motion_motion_capture *brx_motion_media_pipe_video_detector::get_motion_capture()
+{
+    return static_cast<internal_brx_motion_motion_capture *>(this);
+}
+
 uint32_t brx_motion_media_pipe_video_detector::get_hand_count() const
 {
     return this->m_hand_count;
@@ -689,6 +701,21 @@ uint32_t brx_motion_media_pipe_video_detector::get_face_count() const
 uint32_t brx_motion_media_pipe_video_detector::get_pose_count() const
 {
     return this->m_pose_count;
+}
+
+float brx_motion_media_pipe_video_detector::get_pose_confidence_threshold() const
+{
+    return this->m_pose_confidence_threshold;
+}
+
+float brx_motion_media_pipe_video_detector::get_face_confidence_threshold() const
+{
+    return this->m_face_confidence_threshold;
+}
+
+float brx_motion_media_pipe_video_detector::get_hand_confidence_threshold() const
+{
+    return this->m_hand_confidence_threshold;
 }
 
 bool brx_motion_media_pipe_video_detector::get_enable_gpu() const
@@ -707,35 +734,19 @@ void brx_motion_media_pipe_video_detector::set_enable_debug_renderer(bool enable
     {
         if (enable_debug_renderer)
         {
-            {
-                mcrt_string debug_renderer_window_name_original;
-                debug_renderer_window_name_original = " Brioche Motion Video Detector Original [";
-                debug_renderer_window_name_original += in_debug_renderer_window_name;
-                debug_renderer_window_name_original += "]";
+            mcrt_string debug_renderer_window_name_modified;
+            debug_renderer_window_name_modified = " Brioche Motion Video Detector [";
+            debug_renderer_window_name_modified += in_debug_renderer_window_name;
+            debug_renderer_window_name_modified += "]";
 
-                assert(NULL == this->m_debug_renderer_window_original);
-                this->m_debug_renderer_window_original = brx_wsi_create_image_window(debug_renderer_window_name_original.c_str());
-            }
-
-            {
-                mcrt_string debug_renderer_window_name_modified;
-                debug_renderer_window_name_modified = " Brioche Motion Video Detector Modified [";
-                debug_renderer_window_name_modified += in_debug_renderer_window_name;
-                debug_renderer_window_name_modified += "]";
-
-                assert(NULL == this->m_debug_renderer_window_modified);
-                this->m_debug_renderer_window_modified = brx_wsi_create_image_window(debug_renderer_window_name_modified.c_str());
-            }
+            assert(NULL == this->m_debug_renderer_window);
+            this->m_debug_renderer_window = brx_wsi_create_image_window(debug_renderer_window_name_modified.c_str());
         }
         else
         {
-            assert(NULL != this->m_debug_renderer_window_original);
-            brx_wsi_destroy_image_window(this->m_debug_renderer_window_original);
-            this->m_debug_renderer_window_original = NULL;
-
-            assert(NULL != this->m_debug_renderer_window_modified);
-            brx_wsi_destroy_image_window(this->m_debug_renderer_window_modified);
-            this->m_debug_renderer_window_modified = NULL;
+            assert(NULL != this->m_debug_renderer_window);
+            brx_wsi_destroy_image_window(this->m_debug_renderer_window);
+            this->m_debug_renderer_window = NULL;
         }
 
         this->m_enable_debug_renderer = enable_debug_renderer;
@@ -749,11 +760,11 @@ bool brx_motion_media_pipe_video_detector::get_enable_debug_renderer() const
 
 void brx_motion_media_pipe_video_detector::step()
 {
-    this->m_delta_time = static_cast<brx_motion_opencv_video_capture const *>(this->m_input_video_capture)->get_delta_time();
+    this->m_delta_time = static_cast<internal_brx_motion_video_capture const *>(this->m_input_video_capture)->get_delta_time();
 
     this->m_timestamp_ms += static_cast<int64_t>((static_cast<double>(this->m_delta_time) * 1000.0));
 
-    cv::Mat const *const video_frame = static_cast<brx_motion_opencv_video_capture const *>(this->m_input_video_capture)->get_video_frame();
+    cv::Mat const *const video_frame = static_cast<internal_brx_motion_video_capture const *>(this->m_input_video_capture)->get_video_frame();
 
     if (!video_frame->empty())
     {
@@ -858,40 +869,6 @@ void brx_motion_media_pipe_video_detector::step()
             {
                 // we do NOT need the input image any more
                 debug_renderer_output_image = std::move(input_image);
-
-                // Present
-                cv::Mat debug_renderer_raw_output_image;
-                cv::cvtColor(debug_renderer_output_image, debug_renderer_raw_output_image, cv::COLOR_RGB2BGRA);
-                // debug_renderer_output_image.release();
-
-                void *image_buffer;
-                int32_t image_width;
-                int32_t image_height;
-                {
-                    // mediapipe/examples/desktopdemo_run_graph_main.cc
-                    // mediapipe/framework/formats/image_frame_opencv.h
-                    // mediapipe/framework/formats/image_frame_opencv.cc
-
-                    constexpr int const k_number_of_channels_for_format = 4;
-                    constexpr int const k_channel_size_for_format = sizeof(uint8_t);
-                    constexpr int const k_mat_type_for_format = CV_8U;
-
-                    constexpr uint32_t const k_default_alignment_boundary = 16U;
-
-                    image_width = debug_renderer_raw_output_image.cols;
-                    image_height = debug_renderer_raw_output_image.rows;
-
-                    int const type = CV_MAKETYPE(k_mat_type_for_format, k_number_of_channels_for_format);
-                    int const width_step = (((image_width * k_number_of_channels_for_format * k_channel_size_for_format) - 1) | (k_default_alignment_boundary - 1)) + 1;
-                    assert(type == debug_renderer_raw_output_image.type());
-                    assert(width_step == debug_renderer_raw_output_image.step[0]);
-                    image_buffer = static_cast<void *>(debug_renderer_raw_output_image.data);
-                    assert(0U == (reinterpret_cast<uintptr_t>(image_buffer) & (k_default_alignment_boundary - 1)));
-                    assert(debug_renderer_raw_output_image.isContinuous());
-                }
-
-                assert(NULL != this->m_debug_renderer_window_original);
-                brx_wsi_present_image_window(this->m_debug_renderer_window_original, image_buffer, image_width, image_height);
             }
         }
 
@@ -909,9 +886,9 @@ void brx_motion_media_pipe_video_detector::step()
 
             for (uint32_t pose_index = 0U; pose_index < this->m_pose_count; ++pose_index)
             {
-                std::array<bool, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT> &pose_skeleton_joint_translations_model_space_valid = this->m_poses_skeleton_joint_translations_model_space_valid[pose_index];
-                std::array<DirectX::XMFLOAT3, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT> &pose_skeleton_joint_translations_model_space = this->m_poses_skeleton_joint_translations_model_space[pose_index];
-                for (uint32_t pose_skeleton_joint_name_index = 0U; pose_skeleton_joint_name_index < INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT; ++pose_skeleton_joint_name_index)
+                std::array<bool, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_COUNT> &pose_skeleton_joint_translations_model_space_valid = this->m_poses_skeleton_joint_translations_model_space_valid[pose_index];
+                std::array<DirectX::XMFLOAT3, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_COUNT> &pose_skeleton_joint_translations_model_space = this->m_poses_skeleton_joint_translations_model_space[pose_index];
+                for (uint32_t pose_skeleton_joint_name_index = 0U; pose_skeleton_joint_name_index < INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_COUNT; ++pose_skeleton_joint_name_index)
                 {
                     pose_skeleton_joint_translations_model_space_valid[pose_skeleton_joint_name_index] = false;
                     DirectX::XMStoreFloat3(&pose_skeleton_joint_translations_model_space[pose_skeleton_joint_name_index], DirectX::XMVectorZero());
@@ -940,7 +917,7 @@ void brx_motion_media_pipe_video_detector::step()
                     {
                         Landmark const &landmark = pose_world_landmark.landmarks[world_landmark_index];
 
-                        if (((!landmark.has_visibility) || (landmark.visibility > INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE)) && ((!landmark.has_presence) || (landmark.presence > INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE)))
+                        if (((!landmark.has_visibility) || (landmark.visibility > this->m_pose_confidence_threshold)) && ((!landmark.has_presence) || (landmark.presence > this->m_pose_confidence_threshold)))
                         {
                             media_pipe_positions[world_landmark_index] = DirectX::XMFLOAT3(landmark.x, landmark.y, landmark.z);
                             media_pipe_positions_valid[world_landmark_index] = true;
@@ -951,8 +928,8 @@ void brx_motion_media_pipe_video_detector::step()
                     assert(this->m_pose_count == this->m_poses_skeleton_joint_translations_model_space.size());
                     assert(pose_index < this->m_poses_skeleton_joint_translations_model_space_valid.size());
                     assert(this->m_pose_count == this->m_poses_skeleton_joint_translations_model_space_valid.size());
-                    std::array<DirectX::XMFLOAT3, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT> &pose_skeleton_joint_translations_model_space = this->m_poses_skeleton_joint_translations_model_space[pose_index];
-                    std::array<bool, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT> &pose_skeleton_joint_translations_model_space_valid = this->m_poses_skeleton_joint_translations_model_space_valid[pose_index];
+                    std::array<DirectX::XMFLOAT3, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_COUNT> &pose_skeleton_joint_translations_model_space = this->m_poses_skeleton_joint_translations_model_space[pose_index];
+                    std::array<bool, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_COUNT> &pose_skeleton_joint_translations_model_space_valid = this->m_poses_skeleton_joint_translations_model_space_valid[pose_index];
 
                     // MediaPipe Pose
                     // RH
@@ -975,24 +952,24 @@ void brx_motion_media_pipe_video_detector::step()
                     DirectX::XMMATRIX simd_media_pipe_to_gltf = DirectX::XMLoadFloat4x4(&media_pipe_to_gltf);
 
                     constexpr uint32_t const internal_media_pipe_mappings[][2] = {
-                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_SHOULDER, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_ARM},
-                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_ELBOW, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_ELBOW},
-                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_WRIST, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_WRIST},
-                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_HIP, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_LEG},
-                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_KNEE, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_KNEE},
-                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_ANKLE, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_ANKLE},
-                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_FOOT, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_TOE_TIP},
-                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_SHOULDER, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_ARM},
-                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_ELBOW, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_ELBOW},
-                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_WRIST, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_WRIST},
-                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_HIP, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_LEG},
-                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_KNEE, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_KNEE},
-                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_ANKLE, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_ANKLE},
-                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_FOOT, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_TOE_TIP}};
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_SHOULDER, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_RIGHT_ARM},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_ELBOW, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_RIGHT_ELBOW},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_WRIST, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_RIGHT_WRIST},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_HIP, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_RIGHT_LEG},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_KNEE, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_RIGHT_KNEE},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_ANKLE, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_RIGHT_ANKLE},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_FOOT, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_RIGHT_TOE_TIP},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_SHOULDER, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_LEFT_ARM},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_ELBOW, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_LEFT_ELBOW},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_WRIST, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_LEFT_WRIST},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_HIP, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_LEFT_LEG},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_KNEE, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_LEFT_KNEE},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_ANKLE, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_LEFT_ANKLE},
+                        {INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_FOOT, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_LEFT_TOE_TIP}};
 
                     constexpr uint32_t const mapping_count = sizeof(internal_media_pipe_mappings) / sizeof(internal_media_pipe_mappings[0]);
 
-                    static_assert(INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT == (mapping_count + 2), "");
+                    static_assert(INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_COUNT == (mapping_count + 2), "");
 
                     for (uint32_t mapping_index = 0U; mapping_index < mapping_count; ++mapping_index)
                     {
@@ -1015,30 +992,30 @@ void brx_motion_media_pipe_video_detector::step()
 
                     if (media_pipe_positions_valid[INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_HIP] && media_pipe_positions_valid[INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_HIP])
                     {
-                        DirectX::XMStoreFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_CENTER], DirectX::XMVectorScale(DirectX::XMVectorAdd(DirectX::XMVector3TransformCoord(DirectX::XMLoadFloat3(&media_pipe_positions[INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_HIP]), simd_media_pipe_to_gltf), DirectX::XMVector3TransformCoord(DirectX::XMLoadFloat3(&media_pipe_positions[INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_HIP]), simd_media_pipe_to_gltf)), 0.5F));
+                        DirectX::XMStoreFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_CENTER], DirectX::XMVectorScale(DirectX::XMVectorAdd(DirectX::XMVector3TransformCoord(DirectX::XMLoadFloat3(&media_pipe_positions[INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_HIP]), simd_media_pipe_to_gltf), DirectX::XMVector3TransformCoord(DirectX::XMLoadFloat3(&media_pipe_positions[INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_HIP]), simd_media_pipe_to_gltf)), 0.5F));
 
-                        pose_skeleton_joint_translations_model_space_valid[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_CENTER] = true;
+                        pose_skeleton_joint_translations_model_space_valid[INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_CENTER] = true;
                     }
                     else
                     {
-                        assert(DirectX::XMVector3Equal(DirectX::XMLoadFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_CENTER]), DirectX::XMVectorZero()));
+                        assert(DirectX::XMVector3Equal(DirectX::XMLoadFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_CENTER]), DirectX::XMVectorZero()));
 
-                        assert(!pose_skeleton_joint_translations_model_space_valid[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_CENTER]);
+                        assert(!pose_skeleton_joint_translations_model_space_valid[INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_CENTER]);
                     }
 
-                    if (pose_skeleton_joint_translations_model_space_valid[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_CENTER] && pose_skeleton_joint_translations_model_space_valid[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_ARM] && pose_skeleton_joint_translations_model_space_valid[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_ARM])
+                    if (pose_skeleton_joint_translations_model_space_valid[INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_CENTER] && pose_skeleton_joint_translations_model_space_valid[INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_RIGHT_ARM] && pose_skeleton_joint_translations_model_space_valid[INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_LEFT_ARM])
                     {
                         float const golden_ratio = std::sqrt(5.0F) * 0.5F - 0.5F;
 
-                        DirectX::XMStoreFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_UPPER_BODY_2], DirectX::XMVectorLerp(DirectX::XMVectorScale(DirectX::XMVectorAdd(DirectX::XMLoadFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_ARM]), DirectX::XMLoadFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_ARM])), 0.5F), DirectX::XMLoadFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_CENTER]), golden_ratio));
+                        DirectX::XMStoreFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_UPPER_BODY_2], DirectX::XMVectorLerp(DirectX::XMVectorScale(DirectX::XMVectorAdd(DirectX::XMLoadFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_RIGHT_ARM]), DirectX::XMLoadFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_LEFT_ARM])), 0.5F), DirectX::XMLoadFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_CENTER]), golden_ratio));
 
-                        pose_skeleton_joint_translations_model_space_valid[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_UPPER_BODY_2] = true;
+                        pose_skeleton_joint_translations_model_space_valid[INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_UPPER_BODY_2] = true;
                     }
                     else
                     {
-                        assert(DirectX::XMVector3Equal(DirectX::XMLoadFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_UPPER_BODY_2]), DirectX::XMVectorZero()));
+                        assert(DirectX::XMVector3Equal(DirectX::XMLoadFloat3(&pose_skeleton_joint_translations_model_space[INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_UPPER_BODY_2]), DirectX::XMVectorZero()));
 
-                        assert(!pose_skeleton_joint_translations_model_space_valid[INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_UPPER_BODY_2]);
+                        assert(!pose_skeleton_joint_translations_model_space_valid[INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_UPPER_BODY_2]);
                     }
 
                     // wrist 2D
@@ -1049,7 +1026,7 @@ void brx_motion_media_pipe_video_detector::step()
                         {
                             NormalizedLandmark const &right_wrist_normalized_landmark = pose_normalized_landmark.landmarks[INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_RIGHT_WRIST];
 
-                            if (((!right_wrist_normalized_landmark.has_visibility) || (right_wrist_normalized_landmark.visibility > INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE)) && ((!right_wrist_normalized_landmark.has_presence) || (right_wrist_normalized_landmark.presence > INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE)))
+                            if (((!right_wrist_normalized_landmark.has_visibility) || (right_wrist_normalized_landmark.visibility > this->m_pose_confidence_threshold)) && ((!right_wrist_normalized_landmark.has_presence) || (right_wrist_normalized_landmark.presence > this->m_pose_confidence_threshold)))
                             {
                                 wrist_2d_pose_landmarks.push_back(wrist_2d_pose_landmark_t{right_wrist_normalized_landmark.x * static_cast<float>(input_image_width), right_wrist_normalized_landmark.y * static_cast<float>(input_image_height), true});
                             }
@@ -1059,7 +1036,7 @@ void brx_motion_media_pipe_video_detector::step()
                         {
                             NormalizedLandmark const &left_wrist_normalized_landmark = pose_normalized_landmark.landmarks[INTERNAL_MEIDA_PIPE_POSE_POSITION_NAME_LEFT_WRIST];
 
-                            if (((!left_wrist_normalized_landmark.has_visibility) || (left_wrist_normalized_landmark.visibility > INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE)) && ((!left_wrist_normalized_landmark.has_presence) || (left_wrist_normalized_landmark.presence > INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE)))
+                            if (((!left_wrist_normalized_landmark.has_visibility) || (left_wrist_normalized_landmark.visibility > this->m_pose_confidence_threshold)) && ((!left_wrist_normalized_landmark.has_presence) || (left_wrist_normalized_landmark.presence > this->m_pose_confidence_threshold)))
                             {
                                 wrist_2d_pose_landmarks.push_back(wrist_2d_pose_landmark_t{left_wrist_normalized_landmark.x * static_cast<float>(input_image_width), left_wrist_normalized_landmark.y * static_cast<float>(input_image_height), false});
                             }
@@ -1111,7 +1088,7 @@ void brx_motion_media_pipe_video_detector::step()
 
                                 NormalizedLandmark const &end_normalized_landmark = pose_normalized_landmark.landmarks[end_joint_landmark_index];
 
-                                if (((!begin_normalized_landmark.has_visibility) || (begin_normalized_landmark.visibility > INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE)) && ((!begin_normalized_landmark.has_presence) || (begin_normalized_landmark.presence > INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE)) && ((!end_normalized_landmark.has_visibility) || (end_normalized_landmark.visibility > INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE)) && ((!end_normalized_landmark.has_presence) || (end_normalized_landmark.presence > INTERNAL_MEIDA_PIPE_MIN_POSE_CONFIDENCE)))
+                                if (((!begin_normalized_landmark.has_visibility) || (begin_normalized_landmark.visibility > this->m_pose_confidence_threshold)) && ((!begin_normalized_landmark.has_presence) || (begin_normalized_landmark.presence > this->m_pose_confidence_threshold)) && ((!end_normalized_landmark.has_visibility) || (end_normalized_landmark.visibility > this->m_pose_confidence_threshold)) && ((!end_normalized_landmark.has_presence) || (end_normalized_landmark.presence > this->m_pose_confidence_threshold)))
                                 {
                                     cv::Point const parent_point(static_cast<int>(begin_normalized_landmark.x * debug_renderer_output_image.cols), static_cast<int>(begin_normalized_landmark.y * debug_renderer_output_image.rows));
 
@@ -1242,9 +1219,9 @@ void brx_motion_media_pipe_video_detector::step()
 
                     assert(face_index < this->m_faces_morph_joint_weights.size());
                     assert(this->m_face_count == this->m_faces_morph_joint_weights.size());
-                    std::array<DirectX::XMFLOAT4, INTERNAL_VIDEO_DETECTOR_FACE_MORPH_JOINT_NAME_COUNT> &face_morph_joint_weights = this->m_faces_morph_joint_weights[face_index];
+                    std::array<DirectX::XMFLOAT4, INTERNAL_MOTION_CAPTURE_FACE_MORPH_JOINT_NAME_COUNT> &face_morph_joint_weights = this->m_faces_morph_joint_weights[face_index];
 
-                    face_morph_joint_weights[INTERNAL_VIDEO_DETECTOR_FACE_MORPH_JOINT_NAME_RIGHT_EYE] = DirectX::XMFLOAT4(
+                    face_morph_joint_weights[INTERNAL_MOTION_CAPTURE_FACE_MORPH_JOINT_NAME_RIGHT_EYE] = DirectX::XMFLOAT4(
                         // up
                         media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_UP_RIGHT],
                         // down
@@ -1254,7 +1231,7 @@ void brx_motion_media_pipe_video_detector::step()
                         // right
                         media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_OUT_RIGHT]);
 
-                    face_morph_joint_weights[INTERNAL_VIDEO_DETECTOR_FACE_MORPH_JOINT_NAME_LEFT_EYE] = DirectX::XMFLOAT4(
+                    face_morph_joint_weights[INTERNAL_MOTION_CAPTURE_FACE_MORPH_JOINT_NAME_LEFT_EYE] = DirectX::XMFLOAT4(
                         // up
                         media_pipe_weights[INTERNAL_MEDIA_PIPE_FACE_WEIGHT_NAME_EYE_LOOK_UP_LEFT],
                         // down
@@ -1273,7 +1250,7 @@ void brx_motion_media_pipe_video_detector::step()
 
                     assert(face_index < this->m_faces_skeleton_joint_rotations.size());
                     assert(this->m_face_count == this->m_faces_skeleton_joint_rotations.size());
-                    std::array<DirectX::XMFLOAT4, INTERNAL_VIDEO_DETECTOR_FACE_SKELETON_JOINT_NAME_COUNT> &face_skeleton_joint_rotations = this->m_faces_skeleton_joint_rotations[face_index];
+                    std::array<DirectX::XMFLOAT4, INTERNAL_MOTION_CAPTURE_FACE_SKELETON_JOINT_NAME_COUNT> &face_skeleton_joint_rotations = this->m_faces_skeleton_joint_rotations[face_index];
 
                     DirectX::XMFLOAT4X4 media_pipe_head_transform;
                     {
@@ -1335,7 +1312,7 @@ void brx_motion_media_pipe_video_detector::step()
                         DirectX::XMStoreFloat4(&gltf_head_rotation, simd_gltf_head_rotation);
                     }
 
-                    face_skeleton_joint_rotations[INTERNAL_VIDEO_DETECTOR_FACE_SKELETON_JOINT_NAME_HEAD] = gltf_head_rotation;
+                    face_skeleton_joint_rotations[INTERNAL_MOTION_CAPTURE_FACE_SKELETON_JOINT_NAME_HEAD] = gltf_head_rotation;
                 }
 
                 if (this->m_enable_debug_renderer)
@@ -1348,7 +1325,7 @@ void brx_motion_media_pipe_video_detector::step()
                         {
                             NormalizedLandmark const &normalized_landmark = face_landmark.landmarks[landmarks_index];
 
-                            if (((!normalized_landmark.has_visibility) || (normalized_landmark.visibility > INTERNAL_MEIDA_PIPE_MIN_FACE_CONFIDENCE)) && ((!normalized_landmark.has_presence) || (normalized_landmark.presence > INTERNAL_MEIDA_PIPE_MIN_FACE_CONFIDENCE)))
+                            if (((!normalized_landmark.has_visibility) || (normalized_landmark.visibility > this->m_face_confidence_threshold)) && ((!normalized_landmark.has_presence) || (normalized_landmark.presence > this->m_face_confidence_threshold)))
                             {
                                 cv::Point point(static_cast<int>(normalized_landmark.x * debug_renderer_output_image.cols), static_cast<int>(normalized_landmark.y * debug_renderer_output_image.rows));
                                 cv::circle(debug_renderer_output_image, point, 1, cv::Scalar(0, 255, 0));
@@ -1365,9 +1342,9 @@ void brx_motion_media_pipe_video_detector::step()
             // Hand Landmarker
             for (uint32_t hand_index = 0U; hand_index < this->m_hand_count; ++hand_index)
             {
-                std::array<bool, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT> &hand_skeleton_joint_translations_model_space_valid = this->m_hands_skeleton_joint_translations_model_space_valid[hand_index];
-                std::array<DirectX::XMFLOAT3, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT> &hand_skeleton_joint_translations_model_space = this->m_hands_skeleton_joint_translations_model_space[hand_index];
-                for (uint32_t hand_skeleton_joint_name_index = 0U; hand_skeleton_joint_name_index < INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT; ++hand_skeleton_joint_name_index)
+                std::array<bool, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_COUNT> &hand_skeleton_joint_translations_model_space_valid = this->m_hands_skeleton_joint_translations_model_space_valid[hand_index];
+                std::array<DirectX::XMFLOAT3, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_COUNT> &hand_skeleton_joint_translations_model_space = this->m_hands_skeleton_joint_translations_model_space[hand_index];
+                for (uint32_t hand_skeleton_joint_name_index = 0U; hand_skeleton_joint_name_index < INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_COUNT; ++hand_skeleton_joint_name_index)
                 {
                     hand_skeleton_joint_translations_model_space_valid[hand_skeleton_joint_name_index] = false;
                     DirectX::XMStoreFloat3(&hand_skeleton_joint_translations_model_space[hand_skeleton_joint_name_index], DirectX::XMVectorZero());
@@ -1401,7 +1378,7 @@ void brx_motion_media_pipe_video_detector::step()
                             {
                                 NormalizedLandmark const &wrist_normalized_landmark = hand_normalized_landmark.landmarks[INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_WRIST];
 
-                                if (((!wrist_normalized_landmark.has_visibility) || (wrist_normalized_landmark.visibility > INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE)) && ((!wrist_normalized_landmark.has_presence) || (wrist_normalized_landmark.presence > INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE)))
+                                if (((!wrist_normalized_landmark.has_visibility) || (wrist_normalized_landmark.visibility > this->m_hand_confidence_threshold)) && ((!wrist_normalized_landmark.has_presence) || (wrist_normalized_landmark.presence > this->m_hand_confidence_threshold)))
                                 {
                                     wrist_2d_hand_landmarks.push_back(wrist_2d_hand_landmark_t{wrist_normalized_landmark.x * static_cast<float>(input_image_width), wrist_normalized_landmark.y * static_cast<float>(input_image_height), both_hand_index});
                                 }
@@ -1628,7 +1605,7 @@ void brx_motion_media_pipe_video_detector::step()
                             {
                                 Landmark const &landmark = hand_world_landmark.landmarks[world_landmark_index];
 
-                                if (((!landmark.has_visibility) || (landmark.visibility > INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE)) && ((!landmark.has_presence) || (landmark.presence > INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE)))
+                                if (((!landmark.has_visibility) || (landmark.visibility > this->m_hand_confidence_threshold)) && ((!landmark.has_presence) || (landmark.presence > this->m_hand_confidence_threshold)))
                                 {
                                     media_pipe_positions[world_landmark_index] = DirectX::XMFLOAT3(landmark.x, landmark.y, landmark.z);
                                     media_pipe_positions_valid[world_landmark_index] = true;
@@ -1639,8 +1616,8 @@ void brx_motion_media_pipe_video_detector::step()
                             assert(this->m_hand_count == this->m_hands_skeleton_joint_translations_model_space.size());
                             assert(hand_index < this->m_hands_skeleton_joint_translations_model_space_valid.size());
                             assert(this->m_hand_count == this->m_hands_skeleton_joint_translations_model_space_valid.size());
-                            std::array<DirectX::XMFLOAT3, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT> &hand_skeleton_joint_translations_model_space = this->m_hands_skeleton_joint_translations_model_space[hand_index];
-                            std::array<bool, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT> &hand_skeleton_joint_translations_model_space_valid = this->m_hands_skeleton_joint_translations_model_space_valid[hand_index];
+                            std::array<DirectX::XMFLOAT3, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_COUNT> &hand_skeleton_joint_translations_model_space = this->m_hands_skeleton_joint_translations_model_space[hand_index];
+                            std::array<bool, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_COUNT> &hand_skeleton_joint_translations_model_space_valid = this->m_hands_skeleton_joint_translations_model_space_valid[hand_index];
 
                             // MediaPipe hand
                             // RH
@@ -1663,57 +1640,57 @@ void brx_motion_media_pipe_video_detector::step()
                             DirectX::XMMATRIX simd_media_pipe_to_gltf = DirectX::XMLoadFloat4x4(&media_pipe_to_gltf);
 
                             constexpr uint32_t const internal_media_pipe_right_mappings[][2] = {
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_WRIST, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_WRIST},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_CMC, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_CMC},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_MCP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_MCP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_IP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_IP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_TIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_TIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_MCP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_MCP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_PIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_PIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_DIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_DIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_TIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_TIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_MCP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_MCP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_PIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_PIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_DIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_DIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_TIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_TIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_MCP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_MCP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_PIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_PIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_DIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_DIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_TIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_TIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_MCP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_MCP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_PIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_PIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_DIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_DIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_TIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_TIP}};
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_WRIST, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_WRIST},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_CMC, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_CMC},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_MCP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_MCP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_IP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_IP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_TIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_TIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_MCP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_MCP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_PIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_PIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_DIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_DIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_TIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_TIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_MCP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_MCP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_PIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_PIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_DIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_DIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_TIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_TIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_MCP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_MCP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_PIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_PIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_DIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_DIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_TIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_TIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_MCP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_MCP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_PIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_PIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_DIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_DIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_TIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_TIP}};
 
                             constexpr uint32_t const internal_media_pipe_left_mappings[][2] = {
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_WRIST, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_WRIST},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_CMC, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_CMC},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_MCP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_MCP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_IP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_IP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_TIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_TIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_MCP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_MCP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_PIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_PIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_DIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_DIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_TIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_TIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_MCP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_MCP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_PIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_PIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_DIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_DIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_TIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_TIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_MCP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_MCP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_PIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_PIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_DIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_DIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_TIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_TIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_MCP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_MCP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_PIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_PIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_DIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_DIP},
-                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_TIP, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_TIP}};
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_WRIST, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_WRIST},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_CMC, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_CMC},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_MCP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_MCP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_IP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_IP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_THUMB_TIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_TIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_MCP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_MCP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_PIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_PIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_DIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_DIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_INDEX_FINGER_TIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_TIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_MCP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_MCP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_PIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_PIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_DIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_DIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_MIDDLE_FINGER_TIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_TIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_MCP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_MCP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_PIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_PIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_DIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_DIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_RING_FINGER_TIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_TIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_MCP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_MCP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_PIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_PIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_DIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_DIP},
+                                {INTERNAL_MEIDA_PIPE_HAND_POSITION_NAME_PINKY_TIP, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_TIP}};
 
                             constexpr uint32_t const mapping_count = sizeof(internal_media_pipe_right_mappings) / sizeof(internal_media_pipe_right_mappings[0]);
                             static_assert((sizeof(internal_media_pipe_left_mappings) / sizeof(internal_media_pipe_left_mappings[0])) == mapping_count, "");
 
                             uint32_t const(*const internal_media_pipe_mappings)[2] = handedness_right ? internal_media_pipe_right_mappings : internal_media_pipe_left_mappings;
 
-                            static_assert(INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT == (2U * mapping_count), "");
+                            static_assert(INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_COUNT == (2U * mapping_count), "");
 
                             for (uint32_t mapping_index = 0U; mapping_index < mapping_count; ++mapping_index)
                             {
@@ -1795,7 +1772,7 @@ void brx_motion_media_pipe_video_detector::step()
 
                                 NormalizedLandmark const &end_normalized_landmark = hand_normalized_landmark.landmarks[end_joint_landmark_index];
 
-                                if (((!begin_normalized_landmark.has_visibility) || (begin_normalized_landmark.visibility > INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE)) && ((!begin_normalized_landmark.has_presence) || (begin_normalized_landmark.presence > INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE)) && ((!end_normalized_landmark.has_visibility) || (end_normalized_landmark.visibility > INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE)) && ((!end_normalized_landmark.has_presence) || (end_normalized_landmark.presence > INTERNAL_MEIDA_PIPE_MIN_HAND_CONFIDENCE)))
+                                if (((!begin_normalized_landmark.has_visibility) || (begin_normalized_landmark.visibility > this->m_hand_confidence_threshold)) && ((!begin_normalized_landmark.has_presence) || (begin_normalized_landmark.presence > this->m_hand_confidence_threshold)) && ((!end_normalized_landmark.has_visibility) || (end_normalized_landmark.visibility > this->m_hand_confidence_threshold)) && ((!end_normalized_landmark.has_presence) || (end_normalized_landmark.presence > this->m_hand_confidence_threshold)))
                                 {
                                     cv::Point const parent_point(static_cast<int>(begin_normalized_landmark.x * debug_renderer_output_image.cols), static_cast<int>(begin_normalized_landmark.y * debug_renderer_output_image.rows));
 
@@ -1847,8 +1824,8 @@ void brx_motion_media_pipe_video_detector::step()
                     assert(debug_renderer_raw_output_image.isContinuous());
                 }
 
-                assert(NULL != this->m_debug_renderer_window_modified);
-                brx_wsi_present_image_window(this->m_debug_renderer_window_modified, image_buffer, image_width, image_height);
+                assert(NULL != this->m_debug_renderer_window);
+                brx_wsi_present_image_window(this->m_debug_renderer_window, image_buffer, image_width, image_height);
             }
         }
 
@@ -1879,6 +1856,11 @@ double brx_motion_media_pipe_video_detector::get_delta_time() const
     return this->m_delta_time;
 }
 
+brx_motion_rigid_transform brx_motion_media_pipe_video_detector::get_model_transform() const
+{
+    return brx_motion_rigid_transform{{0.0F, 0.0F, 0.0F, 1.0F}, {0.0F, 0.0F, 0.0F}};
+}
+
 float brx_motion_media_pipe_video_detector::get_morph_target_weight(uint32_t face_index, BRX_MOTION_MORPH_TARGET_NAME morph_target_name) const
 {
     if (face_index < this->m_face_count)
@@ -1900,14 +1882,14 @@ DirectX::XMFLOAT4 brx_motion_media_pipe_video_detector::get_face_morph_joint_wei
     {
         assert(face_index < this->m_faces_morph_joint_weights.size());
         assert(this->m_face_count == this->m_faces_morph_joint_weights.size());
-        std::array<DirectX::XMFLOAT4, INTERNAL_VIDEO_DETECTOR_FACE_MORPH_JOINT_NAME_COUNT> const &face_morph_joint_weights = this->m_faces_morph_joint_weights[face_index];
+        std::array<DirectX::XMFLOAT4, INTERNAL_MOTION_CAPTURE_FACE_MORPH_JOINT_NAME_COUNT> const &face_morph_joint_weights = this->m_faces_morph_joint_weights[face_index];
 
         assert((BRX_MOTION_SKELETON_JOINT_NAME_INVALID == skeleton_joint_name) || (skeleton_joint_name < BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT));
         uint32_t const face_morph_joint_index = internal_get_face_morph_joint_index(skeleton_joint_name);
 
         if (BRX_MOTION_UINT32_INDEX_INVALID != face_morph_joint_index)
         {
-            assert(face_morph_joint_index < INTERNAL_VIDEO_DETECTOR_FACE_MORPH_JOINT_NAME_COUNT);
+            assert(face_morph_joint_index < INTERNAL_MOTION_CAPTURE_FACE_MORPH_JOINT_NAME_COUNT);
             return face_morph_joint_weights[face_morph_joint_index];
         }
         else
@@ -1929,15 +1911,15 @@ DirectX::XMFLOAT3 const *brx_motion_media_pipe_video_detector::get_pose_skeleton
         assert(this->m_pose_count == this->m_poses_skeleton_joint_translations_model_space.size());
         assert(pose_index < this->m_poses_skeleton_joint_translations_model_space_valid.size());
         assert(this->m_pose_count == this->m_poses_skeleton_joint_translations_model_space_valid.size());
-        std::array<DirectX::XMFLOAT3, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT> const &pose_skeleton_joint_translations_model_space = this->m_poses_skeleton_joint_translations_model_space[pose_index];
-        std::array<bool, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT> const &pose_skeleton_joint_translations_model_space_valid = this->m_poses_skeleton_joint_translations_model_space_valid[pose_index];
+        std::array<DirectX::XMFLOAT3, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_COUNT> const &pose_skeleton_joint_translations_model_space = this->m_poses_skeleton_joint_translations_model_space[pose_index];
+        std::array<bool, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_COUNT> const &pose_skeleton_joint_translations_model_space_valid = this->m_poses_skeleton_joint_translations_model_space_valid[pose_index];
 
         assert((BRX_MOTION_SKELETON_JOINT_NAME_INVALID == skeleton_joint_name) || (skeleton_joint_name < BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT));
         uint32_t const pose_skeleton_joint_index = internal_get_pose_skeleton_joint_index(skeleton_joint_name);
 
         if (BRX_MOTION_UINT32_INDEX_INVALID != pose_skeleton_joint_index)
         {
-            assert(pose_skeleton_joint_index < INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT);
+            assert(pose_skeleton_joint_index < INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_COUNT);
             if (pose_skeleton_joint_translations_model_space_valid[pose_skeleton_joint_index])
             {
                 assert(!DirectX::XMVector3Equal(DirectX::XMLoadFloat3(&pose_skeleton_joint_translations_model_space[pose_skeleton_joint_index]), DirectX::XMVectorZero()));
@@ -1968,14 +1950,14 @@ DirectX::XMFLOAT4 const *brx_motion_media_pipe_video_detector::get_face_skeleton
     {
         assert(face_index < this->m_faces_skeleton_joint_rotations.size());
         assert(this->m_face_count == this->m_faces_skeleton_joint_rotations.size());
-        std::array<DirectX::XMFLOAT4, INTERNAL_VIDEO_DETECTOR_FACE_SKELETON_JOINT_NAME_COUNT> const &face_skeleton_joint_rotations = this->m_faces_skeleton_joint_rotations[face_index];
+        std::array<DirectX::XMFLOAT4, INTERNAL_MOTION_CAPTURE_FACE_SKELETON_JOINT_NAME_COUNT> const &face_skeleton_joint_rotations = this->m_faces_skeleton_joint_rotations[face_index];
 
         assert((BRX_MOTION_SKELETON_JOINT_NAME_INVALID == skeleton_joint_name) || (skeleton_joint_name < BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT));
         uint32_t const face_skeleton_joint_index = internal_get_face_skeleton_joint_index(skeleton_joint_name);
 
         if (BRX_MOTION_UINT32_INDEX_INVALID != face_skeleton_joint_index)
         {
-            assert(face_skeleton_joint_index < INTERNAL_VIDEO_DETECTOR_FACE_SKELETON_JOINT_NAME_COUNT);
+            assert(face_skeleton_joint_index < INTERNAL_MOTION_CAPTURE_FACE_SKELETON_JOINT_NAME_COUNT);
             return &face_skeleton_joint_rotations[face_skeleton_joint_index];
         }
         else
@@ -1998,15 +1980,15 @@ DirectX::XMFLOAT3 const *brx_motion_media_pipe_video_detector::get_hand_skeleton
         assert(this->m_hand_count == this->m_hands_skeleton_joint_translations_model_space.size());
         assert(hand_index < this->m_hands_skeleton_joint_translations_model_space_valid.size());
         assert(this->m_hand_count == this->m_hands_skeleton_joint_translations_model_space_valid.size());
-        std::array<DirectX::XMFLOAT3, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT> const &hand_skeleton_joint_translations_model_space = this->m_hands_skeleton_joint_translations_model_space[hand_index];
-        std::array<bool, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT> const &hand_skeleton_joint_translations_model_space_valid = this->m_hands_skeleton_joint_translations_model_space_valid[hand_index];
+        std::array<DirectX::XMFLOAT3, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_COUNT> const &hand_skeleton_joint_translations_model_space = this->m_hands_skeleton_joint_translations_model_space[hand_index];
+        std::array<bool, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_COUNT> const &hand_skeleton_joint_translations_model_space_valid = this->m_hands_skeleton_joint_translations_model_space_valid[hand_index];
 
         assert((BRX_MOTION_SKELETON_JOINT_NAME_INVALID == skeleton_joint_name) || (skeleton_joint_name < BRX_MOTION_SKELETON_JOINT_NAME_MMD_COUNT));
         uint32_t const hand_skeleton_joint_index = internal_get_hand_skeleton_joint_index(skeleton_joint_name);
 
         if (BRX_MOTION_UINT32_INDEX_INVALID != hand_skeleton_joint_index)
         {
-            assert(hand_skeleton_joint_index < INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT);
+            assert(hand_skeleton_joint_index < INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_COUNT);
             if (hand_skeleton_joint_translations_model_space_valid[hand_skeleton_joint_index])
             {
                 assert(!DirectX::XMVector3Equal(DirectX::XMLoadFloat3(&hand_skeleton_joint_translations_model_space[hand_skeleton_joint_index]), DirectX::XMVectorZero()));
@@ -2033,23 +2015,23 @@ DirectX::XMFLOAT3 const *brx_motion_media_pipe_video_detector::get_hand_skeleton
 
 void brx_motion_media_pipe_video_detector::retain()
 {
-    brx_motion_media_pipe_video_detector *const retain_unwrapped_video_detector = this;
+    brx_motion_media_pipe_video_detector *const retain_unwrapped_motion_capture = this;
 
-    retain_unwrapped_video_detector->internal_retain();
+    retain_unwrapped_motion_capture->internal_retain();
 }
 
 void brx_motion_media_pipe_video_detector::release()
 {
-    brx_motion_media_pipe_video_detector *const release_unwrapped_video_detector = this;
+    brx_motion_media_pipe_video_detector *const release_unwrapped_motion_capture = this;
 
-    if (0U == release_unwrapped_video_detector->internal_release())
+    if (0U == release_unwrapped_motion_capture->internal_release())
     {
-        brx_motion_media_pipe_video_detector *delete_unwrapped_video_detector = release_unwrapped_video_detector;
+        brx_motion_media_pipe_video_detector *delete_unwrapped_motion_capture = release_unwrapped_motion_capture;
 
-        delete_unwrapped_video_detector->uninit();
+        delete_unwrapped_motion_capture->uninit();
 
-        delete_unwrapped_video_detector->~brx_motion_media_pipe_video_detector();
-        mcrt_free(delete_unwrapped_video_detector);
+        delete_unwrapped_motion_capture->~brx_motion_media_pipe_video_detector();
+        mcrt_free(delete_unwrapped_motion_capture);
     }
 }
 
@@ -2061,13 +2043,13 @@ static inline uint32_t internal_get_face_morph_joint_index(BRX_MOTION_SKELETON_J
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_EYE:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_EYE == skeleton_joint_name);
-        face_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_FACE_MORPH_JOINT_NAME_RIGHT_EYE;
+        face_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_FACE_MORPH_JOINT_NAME_RIGHT_EYE;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_EYE:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_EYE == skeleton_joint_name);
-        face_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_FACE_MORPH_JOINT_NAME_LEFT_EYE;
+        face_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_FACE_MORPH_JOINT_NAME_LEFT_EYE;
     }
     break;
     default:
@@ -2087,97 +2069,97 @@ static inline uint32_t internal_get_pose_skeleton_joint_index(BRX_MOTION_SKELETO
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_CENTER:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_CENTER == skeleton_joint_name);
-        pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_CENTER;
+        pose_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_CENTER;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_UPPER_BODY_2:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_UPPER_BODY_2 == skeleton_joint_name);
-        pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_UPPER_BODY_2;
+        pose_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_UPPER_BODY_2;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ARM:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ARM == skeleton_joint_name);
-        pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_ARM;
+        pose_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_RIGHT_ARM;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ELBOW:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ELBOW == skeleton_joint_name);
-        pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_ELBOW;
+        pose_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_RIGHT_ELBOW;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_WRIST:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_WRIST == skeleton_joint_name);
-        pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_WRIST;
+        pose_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_RIGHT_WRIST;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ARM:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ARM == skeleton_joint_name);
-        pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_ARM;
+        pose_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_LEFT_ARM;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ELBOW:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ELBOW == skeleton_joint_name);
-        pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_ELBOW;
+        pose_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_LEFT_ELBOW;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_WRIST:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_WRIST == skeleton_joint_name);
-        pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_WRIST;
+        pose_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_LEFT_WRIST;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LEG:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LEG == skeleton_joint_name);
-        pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_LEG;
+        pose_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_RIGHT_LEG;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_KNEE:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_KNEE == skeleton_joint_name);
-        pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_KNEE;
+        pose_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_RIGHT_KNEE;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ANKLE:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_ANKLE == skeleton_joint_name);
-        pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_ANKLE;
+        pose_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_RIGHT_ANKLE;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_TOE_TIP:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_TOE_TIP == skeleton_joint_name);
-        pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_RIGHT_TOE_TIP;
+        pose_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_RIGHT_TOE_TIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LEG:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LEG == skeleton_joint_name);
-        pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_LEG;
+        pose_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_LEFT_LEG;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_KNEE:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_KNEE == skeleton_joint_name);
-        pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_KNEE;
+        pose_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_LEFT_KNEE;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ANKLE:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_ANKLE == skeleton_joint_name);
-        pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_ANKLE;
+        pose_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_LEFT_ANKLE;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_TOE_TIP:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_TOE_TIP == skeleton_joint_name);
-        pose_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_LEFT_TOE_TIP;
+        pose_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_LEFT_TOE_TIP;
     }
     break;
     default:
@@ -2197,7 +2179,7 @@ static inline uint32_t internal_get_face_skeleton_joint_index(BRX_MOTION_SKELETO
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_HEAD:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_HEAD == skeleton_joint_name);
-        face_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_FACE_SKELETON_JOINT_NAME_HEAD;
+        face_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_FACE_SKELETON_JOINT_NAME_HEAD;
     }
     break;
     default:
@@ -2217,253 +2199,253 @@ static inline uint32_t internal_get_hand_skeleton_joint_index(BRX_MOTION_SKELETO
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_WRIST:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_WRIST == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_WRIST;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_WRIST;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_THUMB_0:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_THUMB_0 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_CMC;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_CMC;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_THUMB_1:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_THUMB_1 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_MCP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_MCP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_THUMB_2:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_THUMB_2 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_IP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_IP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_THUMB_TIP:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_THUMB_TIP == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_TIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_THUMB_TIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_INDEX_FINGER_1:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_INDEX_FINGER_1 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_MCP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_MCP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_INDEX_FINGER_2:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_INDEX_FINGER_2 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_PIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_PIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_INDEX_FINGER_3:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_INDEX_FINGER_3 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_DIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_DIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_INDEX_FINGER_TIP:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_INDEX_FINGER_TIP == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_TIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_INDEX_FINGER_TIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_MIDDLE_FINGER_1:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_MIDDLE_FINGER_1 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_MCP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_MCP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_MIDDLE_FINGER_2:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_MIDDLE_FINGER_2 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_PIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_PIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_MIDDLE_FINGER_3:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_MIDDLE_FINGER_3 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_DIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_DIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_MIDDLE_FINGER_TIP:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_MIDDLE_FINGER_TIP == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_TIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_MIDDLE_FINGER_TIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_RING_FINGER_1:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_RING_FINGER_1 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_MCP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_MCP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_RING_FINGER_2:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_RING_FINGER_2 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_PIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_PIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_RING_FINGER_3:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_RING_FINGER_3 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_DIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_DIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_RING_FINGER_TIP:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_RING_FINGER_TIP == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_TIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_RING_FINGER_TIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LITTLE_FINGER_1:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LITTLE_FINGER_1 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_MCP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_MCP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LITTLE_FINGER_2:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LITTLE_FINGER_2 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_PIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_PIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LITTLE_FINGER_3:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LITTLE_FINGER_3 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_DIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_DIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LITTLE_FINGER_TIP:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_LITTLE_FINGER_TIP == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_TIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_RIGHT_PINKY_TIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_WRIST:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_WRIST == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_WRIST;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_WRIST;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_THUMB_0:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_THUMB_0 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_CMC;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_CMC;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_THUMB_1:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_THUMB_1 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_MCP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_MCP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_THUMB_2:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_THUMB_2 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_IP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_IP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_THUMB_TIP:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_THUMB_TIP == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_TIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_THUMB_TIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_INDEX_FINGER_1:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_INDEX_FINGER_1 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_MCP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_MCP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_INDEX_FINGER_2:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_INDEX_FINGER_2 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_PIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_PIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_INDEX_FINGER_3:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_INDEX_FINGER_3 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_DIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_DIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_INDEX_FINGER_TIP:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_INDEX_FINGER_TIP == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_TIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_INDEX_FINGER_TIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_MIDDLE_FINGER_1:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_MIDDLE_FINGER_1 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_MCP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_MCP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_MIDDLE_FINGER_2:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_MIDDLE_FINGER_2 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_PIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_PIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_MIDDLE_FINGER_3:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_MIDDLE_FINGER_3 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_DIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_DIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_MIDDLE_FINGER_TIP:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_MIDDLE_FINGER_TIP == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_TIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_MIDDLE_FINGER_TIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_RING_FINGER_1:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_RING_FINGER_1 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_MCP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_MCP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_RING_FINGER_2:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_RING_FINGER_2 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_PIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_PIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_RING_FINGER_3:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_RING_FINGER_3 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_DIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_DIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_RING_FINGER_TIP:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_RING_FINGER_TIP == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_TIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_RING_FINGER_TIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LITTLE_FINGER_1:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LITTLE_FINGER_1 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_MCP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_MCP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LITTLE_FINGER_2:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LITTLE_FINGER_2 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_PIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_PIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LITTLE_FINGER_3:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LITTLE_FINGER_3 == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_DIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_DIP;
     }
     break;
     case BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LITTLE_FINGER_TIP:
     {
         assert(BRX_MOTION_SKELETON_JOINT_NAME_MMD_LEFT_LITTLE_FINGER_TIP == skeleton_joint_name);
-        hand_skeleton_joint_index = INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_TIP;
+        hand_skeleton_joint_index = INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_LEFT_PINKY_TIP;
     }
     break;
     default:

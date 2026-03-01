@@ -17,6 +17,7 @@
 
 #include "../../McRT-Malloc/include/mcrt_malloc.h"
 #include "../../McRT-Malloc/include/mcrt_tick_count.h"
+#include "../../Brioche-Window-System-Integration/include/brx_wsi.h"
 #include "brx_motion_opencv_video_capture.h"
 #include <cassert>
 #include <cstring>
@@ -42,18 +43,16 @@ extern "C" brx_motion_video_capture *brx_motion_create_video_capture(char const 
     }
 }
 
-extern void internal_retain_video_capture(brx_motion_video_capture *wrapped_video_capture)
+void brx_motion_opencv_video_capture::retain()
 {
-    assert(NULL != wrapped_video_capture);
-    brx_motion_opencv_video_capture *const retain_unwrapped_video_capture = static_cast<brx_motion_opencv_video_capture *>(wrapped_video_capture);
+    brx_motion_opencv_video_capture *const retain_unwrapped_video_capture = this;
 
-    retain_unwrapped_video_capture->retain();
+    retain_unwrapped_video_capture->internal_retain();
 }
 
-extern void internal_release_video_capture(brx_motion_video_capture *wrapped_video_capture)
+void brx_motion_opencv_video_capture::release()
 {
-    assert(NULL != wrapped_video_capture);
-    brx_motion_opencv_video_capture *const release_unwrapped_video_capture = static_cast<brx_motion_opencv_video_capture *>(wrapped_video_capture);
+    brx_motion_opencv_video_capture *const release_unwrapped_video_capture = this;
 
     if (0U == release_unwrapped_video_capture->internal_release())
     {
@@ -68,10 +67,13 @@ extern void internal_release_video_capture(brx_motion_video_capture *wrapped_vid
 
 extern "C" void brx_motion_destroy_video_capture(brx_motion_video_capture *wrapped_video_capture)
 {
-    internal_release_video_capture(wrapped_video_capture);
+    assert(NULL != wrapped_video_capture);
+    internal_brx_motion_video_capture *const release_unwrapped_video_capture = static_cast<internal_brx_motion_video_capture *>(wrapped_video_capture);
+
+    release_unwrapped_video_capture->release();
 }
 
-brx_motion_opencv_video_capture::brx_motion_opencv_video_capture() : m_ref_count(0U), m_type(BRX_MOTION_VIDEO_CAPTURE_TYPE_UNKNOWN), m_tick_count_per_second(0U), m_tick_count_per_frame(0U), m_tick_count_previous_frame(0U), m_width(0U), m_height(0U), m_fps(0U)
+brx_motion_opencv_video_capture::brx_motion_opencv_video_capture() : m_ref_count(0U), m_type(BRX_MOTION_VIDEO_CAPTURE_TYPE_UNKNOWN), m_tick_count_per_second(0U), m_tick_count_per_frame(0U), m_tick_count_previous_frame(0U), m_width(0U), m_height(0U), m_fps(0U), m_backend_name{}, m_enable_debug_renderer(false), m_debug_renderer_window(NULL)
 {
 }
 
@@ -79,6 +81,7 @@ brx_motion_opencv_video_capture::~brx_motion_opencv_video_capture()
 {
     assert(this->m_backend_name.empty());
     assert(!this->m_video_capture.isOpened());
+    assert(!this->m_enable_debug_renderer);
 }
 
 bool brx_motion_opencv_video_capture::init(char const *video_url)
@@ -240,9 +243,22 @@ void brx_motion_opencv_video_capture::uninit()
 
     assert(!this->m_backend_name.empty());
     this->m_backend_name.clear();
+
+    if (this->m_enable_debug_renderer)
+    {
+        assert(NULL != this->m_debug_renderer_window);
+        brx_wsi_destroy_image_window(this->m_debug_renderer_window);
+        this->m_debug_renderer_window = NULL;
+
+        this->m_enable_debug_renderer = false;
+    }
+    else
+    {
+        assert(!this->m_enable_debug_renderer);
+    }
 }
 
-inline void brx_motion_opencv_video_capture::retain()
+inline void brx_motion_opencv_video_capture::internal_retain()
 {
     assert(this->m_ref_count > 0U);
     assert(this->m_ref_count < static_cast<uint32_t>(UINT32_MAX));
@@ -304,6 +320,36 @@ uint32_t brx_motion_opencv_video_capture::get_fps() const
     return this->m_fps;
 }
 
+void brx_motion_opencv_video_capture::set_enable_debug_renderer(bool enable_debug_renderer, char const *in_debug_renderer_window_name)
+{
+    if (enable_debug_renderer != this->m_enable_debug_renderer)
+    {
+        if (enable_debug_renderer)
+        {
+            mcrt_string debug_renderer_window_name;
+            debug_renderer_window_name = " Brioche Motion Video Capture [";
+            debug_renderer_window_name += in_debug_renderer_window_name;
+            debug_renderer_window_name += "]";
+
+            assert(NULL == this->m_debug_renderer_window);
+            this->m_debug_renderer_window = brx_wsi_create_image_window(debug_renderer_window_name.c_str());
+        }
+        else
+        {
+            assert(NULL != this->m_debug_renderer_window);
+            brx_wsi_destroy_image_window(this->m_debug_renderer_window);
+            this->m_debug_renderer_window = NULL;
+        }
+
+        this->m_enable_debug_renderer = enable_debug_renderer;
+    }
+}
+
+bool brx_motion_opencv_video_capture::get_enable_debug_renderer() const
+{
+    return this->m_enable_debug_renderer;
+}
+
 void brx_motion_opencv_video_capture::step()
 {
     if (BRX_MOTION_VIDEO_CAPTURE_TYPE_FILE == this->m_type)
@@ -334,6 +380,43 @@ void brx_motion_opencv_video_capture::step()
     if (this->m_video_capture.read(this->m_video_frame))
     {
         assert(!this->m_video_frame.empty());
+
+        // Present
+
+        if (this->m_enable_debug_renderer)
+        {
+            cv::Mat debug_renderer_raw_output_image;
+            cv::cvtColor(this->m_video_frame, debug_renderer_raw_output_image, cv::COLOR_BGR2BGRA);
+
+            void *image_buffer;
+            int32_t image_width;
+            int32_t image_height;
+            {
+                // mediapipe/examples/desktopdemo_run_graph_main.cc
+                // mediapipe/framework/formats/image_frame_opencv.h
+                // mediapipe/framework/formats/image_frame_opencv.cc
+
+                constexpr int const k_number_of_channels_for_format = 4;
+                constexpr int const k_channel_size_for_format = sizeof(uint8_t);
+                constexpr int const k_mat_type_for_format = CV_8U;
+
+                constexpr uint32_t const k_default_alignment_boundary = 16U;
+
+                image_width = this->m_video_frame.cols;
+                image_height = this->m_video_frame.rows;
+
+                int const type = CV_MAKETYPE(k_mat_type_for_format, k_number_of_channels_for_format);
+                int const width_step = (((image_width * k_number_of_channels_for_format * k_channel_size_for_format) - 1) | (k_default_alignment_boundary - 1)) + 1;
+                assert(type == debug_renderer_raw_output_image.type());
+                assert(width_step == debug_renderer_raw_output_image.step[0]);
+                image_buffer = static_cast<void *>(debug_renderer_raw_output_image.data);
+                assert(0U == (reinterpret_cast<uintptr_t>(image_buffer) & (k_default_alignment_boundary - 1)));
+                assert(debug_renderer_raw_output_image.isContinuous());
+            }
+
+            assert(NULL != this->m_debug_renderer_window);
+            brx_wsi_present_image_window(this->m_debug_renderer_window, image_buffer, image_width, image_height);
+        }
     }
     else
     {

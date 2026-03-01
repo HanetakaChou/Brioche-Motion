@@ -21,6 +21,8 @@
         brx_motion_destroy_video_capture;
         brx_motion_create_video_detector;
         brx_motion_destroy_video_detector;
+        brx_motion_create_motion_receiver;
+        brx_motion_destroy_motion_receiver;
         brx_motion_create_animation;
         brx_motion_destroy_animation;
         brx_motion_create_animation_instance;

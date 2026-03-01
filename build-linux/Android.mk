@@ -94,6 +94,7 @@ LOCAL_SRC_FILES := \
 	$(LOCAL_PATH)/../source/brx_motion_animation.cpp \
 	$(LOCAL_PATH)/../source/brx_motion_media_pipe_video_detector.cpp \
 	$(LOCAL_PATH)/../source/brx_motion_opencv_video_capture.cpp \
+	$(LOCAL_PATH)/../source/brx_motion_vmc_motion_receiver.cpp \
 	$(LOCAL_PATH)/../source/internal_tflite.cpp
 
 LOCAL_CFLAGS :=

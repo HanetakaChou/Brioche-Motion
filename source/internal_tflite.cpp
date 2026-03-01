@@ -333,7 +333,7 @@ extern bool internal_tflite_check_gpu_support()
             {
                 if (num_devices > 0)
                 {
-                    std::vector<cl_device_id> devices(num_devices);
+                    mcrt_vector<cl_device_id> devices(num_devices);
                     cl_int status_get_device_id_2 = pfn_get_device_ids(platform_id, CL_DEVICE_TYPE_GPU, num_devices, devices.data(), nullptr);
                     if (CL_SUCCESS == status_get_device_id_2)
                     {

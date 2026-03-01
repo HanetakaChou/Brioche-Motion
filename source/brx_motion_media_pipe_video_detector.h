@@ -22,7 +22,7 @@
 #include "../../McRT-Malloc/include/mcrt_string.h"
 #include "../../McRT-Malloc/include/mcrt_unordered_map.h"
 #include "../../McRT-Malloc/include/mcrt_vector.h"
-#include "brx_motion_video_detector.h"
+#include "brx_motion_motion_capture.h"
 #if defined(__GNUC__)
 // GCC or CLANG
 #pragma GCC diagnostic push
@@ -37,48 +37,58 @@
 #endif
 #include <array>
 
-class brx_motion_media_pipe_video_detector final : public internal_brx_motion_video_detector
+class brx_motion_media_pipe_video_detector final : public internal_brx_motion_motion_capture, public brx_motion_video_detector
 {
 	uint32_t m_ref_count;
 	uint32_t m_pose_count;
 	uint32_t m_face_count;
 	uint32_t m_hand_count;
+	float m_pose_confidence_threshold;
+	float m_face_confidence_threshold;
+	float m_hand_confidence_threshold;
 	void *m_pose_landmarker;
 	void *m_face_landmarker;
 	void *m_hand_landmarker;
-	mcrt_vector<std::array<bool, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT>> m_poses_skeleton_joint_translations_model_space_valid;
-	mcrt_vector<std::array<DirectX::XMFLOAT3, INTERNAL_VIDEO_DETECTOR_POSE_SKELETON_JOINT_NAME_COUNT>> m_poses_skeleton_joint_translations_model_space;
+	mcrt_vector<std::array<bool, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_COUNT>> m_poses_skeleton_joint_translations_model_space_valid;
+	mcrt_vector<std::array<DirectX::XMFLOAT3, INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_COUNT>> m_poses_skeleton_joint_translations_model_space;
 	mcrt_vector<std::array<float, BRX_MOTION_MORPH_TARGET_NAME_MMD_COUNT>> m_faces_morph_target_weights;
-	mcrt_vector<std::array<DirectX::XMFLOAT4, INTERNAL_VIDEO_DETECTOR_FACE_MORPH_JOINT_NAME_COUNT>> m_faces_morph_joint_weights;
-	mcrt_vector<std::array<DirectX::XMFLOAT4, INTERNAL_VIDEO_DETECTOR_FACE_SKELETON_JOINT_NAME_COUNT>> m_faces_skeleton_joint_rotations;
-	mcrt_vector<std::array<bool, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT>> m_hands_skeleton_joint_translations_model_space_valid;
-	mcrt_vector<std::array<DirectX::XMFLOAT3, INTERNAL_VIDEO_DETECTOR_HAND_SKELETON_JOINT_NAME_COUNT>> m_hands_skeleton_joint_translations_model_space;
+	mcrt_vector<std::array<DirectX::XMFLOAT4, INTERNAL_MOTION_CAPTURE_FACE_MORPH_JOINT_NAME_COUNT>> m_faces_morph_joint_weights;
+	mcrt_vector<std::array<DirectX::XMFLOAT4, INTERNAL_MOTION_CAPTURE_FACE_SKELETON_JOINT_NAME_COUNT>> m_faces_skeleton_joint_rotations;
+	mcrt_vector<std::array<bool, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_COUNT>> m_hands_skeleton_joint_translations_model_space_valid;
+	mcrt_vector<std::array<DirectX::XMFLOAT3, INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_COUNT>> m_hands_skeleton_joint_translations_model_space;
 	double m_delta_time;
 	int64_t m_timestamp_ms;
 	bool m_enable_debug_renderer;
-	void *m_debug_renderer_window_original;
-	void *m_debug_renderer_window_modified;
+	void *m_debug_renderer_window;
 	bool m_enable_gpu;
 	brx_motion_video_capture const *m_input_video_capture;
 
 public:
 	brx_motion_media_pipe_video_detector();
 	~brx_motion_media_pipe_video_detector();
-	bool init(uint32_t pose_count, uint32_t face_count, uint32_t hand_count, bool force_gpu, brx_motion_video_capture const *video_capture);
+	bool init(uint32_t pose_count, uint32_t face_count, uint32_t hand_count, float pose_confidence_threshold, float face_confidence_threshold, float hand_confidence_threshold, bool force_gpu, brx_motion_video_capture const *video_capture);
 	void uninit();
 
 private:
 	inline void internal_retain();
 	inline uint32_t internal_release();
 
+	brx_motion_video_detector *get_video_detector() override;
+	brx_motion_motion_receiver *get_motion_receiver() override;
+	brx_motion_motion_capture *get_motion_capture() override;
+
 	uint32_t get_hand_count() const override;
 	uint32_t get_face_count() const override;
 	uint32_t get_pose_count() const override;
+	float get_pose_confidence_threshold() const override;
+	float get_face_confidence_threshold() const override;
+	float get_hand_confidence_threshold() const override;
 	bool get_enable_gpu() const override;
 	brx_motion_video_capture *get_input() const override;
 	void set_enable_debug_renderer(bool enable_debug_renderer, char const *debug_renderer_window_name) override;
 	bool get_enable_debug_renderer() const override;
 	void step() override;
+	brx_motion_rigid_transform get_model_transform() const override;
 	float get_morph_target_weight(uint32_t face_index, BRX_MOTION_MORPH_TARGET_NAME morph_target_name) const override;
 
 	double get_delta_time() const override;

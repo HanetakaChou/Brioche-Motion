@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		8408EEFC2F261C140015CB85 /* hand_landmarker_task.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8408EEFB2F261C140015CB85 /* hand_landmarker_task.cpp */; };
+		844484BE2F52DAFA00EEFEE1 /* brx_motion_vmc_motion_receiver.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 844484BD2F52DAFA00EEFEE1 /* brx_motion_vmc_motion_receiver.cpp */; };
 		8494194C2F13A9C60022634B /* face_landmarker_task.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8494194A2F13A9C60022634B /* face_landmarker_task.cpp */; };
 		8494194D2F13A9C60022634B /* pose_landmarker_task.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8494194B2F13A9C60022634B /* pose_landmarker_task.cpp */; };
 		849419552F13AB820022634B /* brx_animation_ik_two_joints.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 849419502F13AB820022634B /* brx_animation_ik_two_joints.cpp */; };
@@ -44,6 +45,7 @@
 
 /* Begin PBXFileReference section */
 		8408EEFB2F261C140015CB85 /* hand_landmarker_task.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = hand_landmarker_task.cpp; path = ../models/hand_landmarker_task.cpp; sourceTree = SOURCE_ROOT; };
+		844484BD2F52DAFA00EEFEE1 /* brx_motion_vmc_motion_receiver.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = brx_motion_vmc_motion_receiver.cpp; path = ../source/brx_motion_vmc_motion_receiver.cpp; sourceTree = SOURCE_ROOT; };
 		849417882F12F1C90022634B /* BRX-Motion.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = "BRX-Motion.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
 		849419492F13A9180022634B /* BRX-Motion-MediaPipe-Model-Asset.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = "BRX-Motion-MediaPipe-Model-Asset.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
 		8494194A2F13A9C60022634B /* face_landmarker_task.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = face_landmarker_task.cpp; path = ../models/face_landmarker_task.cpp; sourceTree = SOURCE_ROOT; };
@@ -128,6 +130,7 @@
 				849419512F13AB820022634B /* brx_motion_animation.cpp */,
 				849419522F13AB820022634B /* brx_motion_media_pipe_video_detector.cpp */,
 				849419532F13AB820022634B /* brx_motion_opencv_video_capture.cpp */,
+				844484BD2F52DAFA00EEFEE1 /* brx_motion_vmc_motion_receiver.cpp */,
 				849419542F13AB820022634B /* internal_tflite.cpp */,
 				8408EEFB2F261C140015CB85 /* hand_landmarker_task.cpp */,
 				8494194A2F13A9C60022634B /* face_landmarker_task.cpp */,
@@ -288,6 +291,7 @@
 			files = (
 				849419552F13AB820022634B /* brx_animation_ik_two_joints.cpp in Sources */,
 				849419562F13AB820022634B /* brx_motion_media_pipe_video_detector.cpp in Sources */,
+				844484BE2F52DAFA00EEFEE1 /* brx_motion_vmc_motion_receiver.cpp in Sources */,
 				849419572F13AB820022634B /* internal_tflite.cpp in Sources */,
 				849419582F13AB820022634B /* brx_animation_ik_ccd.cpp in Sources */,
 				849419592F13AB820022634B /* brx_motion_animation.cpp in Sources */,
