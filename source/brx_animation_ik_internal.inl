@@ -79,12 +79,12 @@ static inline DirectX::XMVECTOR XM_CALLCONV internal_calculate_perpendicular_vec
     int ok1 = 1;
     int ok2 = 2;
 
-    float in_v[3];
-    DirectX::XMStoreFloat3(reinterpret_cast<DirectX::XMFLOAT3 *>(&in_v[0]), simd_in_v);
+    DirectX::XMFLOAT3 dx_in_abs_v;
+    DirectX::XMStoreFloat3(&dx_in_abs_v, DirectX::XMVectorAbs(simd_in_v));
 
-    float a0 = in_v[0];
-    float a1 = in_v[1];
-    float a2 = in_v[2];
+    float a0 = dx_in_abs_v.x;
+    float a1 = dx_in_abs_v.y;
+    float a2 = dx_in_abs_v.z;
 
     if (a1 < a0)
     {
@@ -99,10 +99,17 @@ static inline DirectX::XMVECTOR XM_CALLCONV internal_calculate_perpendicular_vec
         min = 2;
     }
 
+    DirectX::XMFLOAT3 dx_in_v;
+    DirectX::XMStoreFloat3(&dx_in_v, simd_in_v);
+
+    float const in_v[3] = {dx_in_v.x, dx_in_v.y, dx_in_v.z};
+
     float out_v[3] = {0.0F, 0.0F, 0.0F};
     out_v[ok1] = in_v[ok2];
     out_v[ok2] = -in_v[ok1];
-    return DirectX::XMLoadFloat3(reinterpret_cast<DirectX::XMFLOAT3 *>(&out_v[0]));
+
+    DirectX::XMFLOAT3 const dx_out_v(out_v[0], out_v[1], out_v[2]);
+    return DirectX::XMLoadFloat3(&dx_out_v);
 }
 
 static inline DirectX::XMVECTOR XM_CALLCONV internal_compute_shortest_rotation_damped(DirectX::XMVECTOR from, DirectX::XMVECTOR to, float gain)

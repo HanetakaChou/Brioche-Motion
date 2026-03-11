@@ -78,19 +78,15 @@ static constexpr double const INTERNAL_HAND_SKELETON_JOINT_ROTATION_EMA_TAU = 0.
 // [setupFps](https://github.com/MMD-Blender/blender_mmd_tools/blob/main/mmd_tools/auto_scene_setup.py#L27)
 static constexpr float const INTERNAL_FRAME_DELTA_TIME = 1.0F / 30.0F;
 
-static constexpr uint32_t const INTERNAL_LOW_FRAME_MAXIMUM_SUBSTEP_COUNT = 4U;
+static constexpr uint32_t const INTERNAL_LOW_FRAME_MAXIMUM_SUBSTEP_COUNT = 10U;
 // [VMDAnimation::SyncPhysics](https://github.com/benikabocha/saba/blob/master/src/Saba/Model/MMD/VMDAnimation.cpp#L374)
 static constexpr float const INTERNAL_LOW_FRAME_SUBSTEP_DELTA_TIME = 1.0F / 60.0F;
 
-static constexpr uint32_t const INTERNAL_MEDIUM_FRAME_MAXIMUM_SUBSTEP_COUNT = 6U;
+static constexpr uint32_t const INTERNAL_MEDIUM_FRAME_MAXIMUM_SUBSTEP_COUNT = 15U;
 static constexpr float const INTERNAL_MEDIUM_FRAME_SUBSTEP_DELTA_TIME = 1.0F / 90.0F;
 
-static constexpr uint32_t const INTERNAL_HIGH_FRAME_MAXIMUM_SUBSTEP_COUNT = 8U;
+static constexpr uint32_t const INTERNAL_HIGH_FRAME_MAXIMUM_SUBSTEP_COUNT = 20U;
 static constexpr float const INTERNAL_HIGH_FRAME_SUBSTEP_DELTA_TIME = 1.0F / 120.0F;
-
-static constexpr float const INTERNAL_PHYSICS_SYNCHRONIZATION_DELTA_TIME = 1.0F;
-static constexpr uint32_t const INTERNAL_PHYSICS_SYNCHRONIZATION_MAXIMUM_SUBSTEP_COUNT = 90U;
-static constexpr float const INTERNAL_PHYSICS_SYNCHRONIZATION_SUBSTEP_DELTA_TIME = 1.0F / 90.0F;
 
 constexpr BRX_MOTION_SKELETON_JOINT_NAME const internal_morph_input_joints[] = {
     BRX_MOTION_SKELETON_JOINT_NAME_MMD_RIGHT_EYE,
@@ -2888,126 +2884,86 @@ void brx_motion_animation_skeleton_instance::step(BRX_MOTION_PHYSICS_RAGDOLL_QUA
 
     if ((BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_LOW == physics_ragdoll_quality) || (BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_MEDIUM == physics_ragdoll_quality) || (BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_HIGH == physics_ragdoll_quality))
     {
-        // TODO: implement the physics synchronization
+        // we use CCD to support physics synchronization
 
         float physics_delta_time;
         uint32_t physics_max_substep_count;
         float physics_substep_delta_time;
         if (NULL != this->m_joint_input_animation_instance)
         {
-            if (this->m_joint_input_continuous)
+            physics_delta_time = this->m_joint_input_animation_instance->get_delta_time();
+            switch (physics_ragdoll_quality)
             {
-                if (this->m_joint_input_animation_instance->get_continuous())
-                {
-                    physics_delta_time = this->m_joint_input_animation_instance->get_delta_time();
-
-                    switch (physics_ragdoll_quality)
-                    {
-                    case BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_LOW:
-                    {
-                        physics_max_substep_count = INTERNAL_LOW_FRAME_MAXIMUM_SUBSTEP_COUNT;
-                        physics_substep_delta_time = INTERNAL_LOW_FRAME_SUBSTEP_DELTA_TIME;
-                    }
-                    break;
-                    case BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_MEDIUM:
-                    {
-                        physics_max_substep_count = INTERNAL_MEDIUM_FRAME_MAXIMUM_SUBSTEP_COUNT;
-                        physics_substep_delta_time = INTERNAL_MEDIUM_FRAME_SUBSTEP_DELTA_TIME;
-                    }
-                    break;
-                    default:
-                    {
-                        assert(BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_HIGH == physics_ragdoll_quality);
-                        physics_max_substep_count = INTERNAL_HIGH_FRAME_MAXIMUM_SUBSTEP_COUNT;
-                        physics_substep_delta_time = INTERNAL_HIGH_FRAME_SUBSTEP_DELTA_TIME;
-                    }
-                    }
-                }
-                else
-                {
-                    physics_delta_time = INTERNAL_PHYSICS_SYNCHRONIZATION_DELTA_TIME;
-                    physics_max_substep_count = INTERNAL_PHYSICS_SYNCHRONIZATION_MAXIMUM_SUBSTEP_COUNT;
-                    physics_substep_delta_time = INTERNAL_PHYSICS_SYNCHRONIZATION_SUBSTEP_DELTA_TIME;
-                }
+            case BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_LOW:
+            {
+                physics_max_substep_count = INTERNAL_LOW_FRAME_MAXIMUM_SUBSTEP_COUNT;
+                physics_substep_delta_time = INTERNAL_LOW_FRAME_SUBSTEP_DELTA_TIME;
             }
-            else
+            break;
+            case BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_MEDIUM:
             {
-                physics_delta_time = INTERNAL_PHYSICS_SYNCHRONIZATION_DELTA_TIME;
-                physics_max_substep_count = INTERNAL_PHYSICS_SYNCHRONIZATION_MAXIMUM_SUBSTEP_COUNT;
-                physics_substep_delta_time = INTERNAL_PHYSICS_SYNCHRONIZATION_SUBSTEP_DELTA_TIME;
-                this->m_joint_input_continuous = true;
+                physics_max_substep_count = INTERNAL_MEDIUM_FRAME_MAXIMUM_SUBSTEP_COUNT;
+                physics_substep_delta_time = INTERNAL_MEDIUM_FRAME_SUBSTEP_DELTA_TIME;
+            }
+            break;
+            default:
+            {
+                assert(BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_HIGH == physics_ragdoll_quality);
+                physics_max_substep_count = INTERNAL_HIGH_FRAME_MAXIMUM_SUBSTEP_COUNT;
+                physics_substep_delta_time = INTERNAL_HIGH_FRAME_SUBSTEP_DELTA_TIME;
+            }
             }
         }
         else if (NULL != this->m_joint_input_motion_capture)
         {
-            if (this->m_joint_input_continuous)
-            {
-                physics_delta_time = static_cast<internal_brx_motion_motion_capture const *>(this->m_joint_input_motion_capture)->get_delta_time();
+            physics_delta_time = static_cast<internal_brx_motion_motion_capture const *>(this->m_joint_input_motion_capture)->get_delta_time();
 
-                switch (physics_ragdoll_quality)
-                {
-                case BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_LOW:
-                {
-                    physics_max_substep_count = INTERNAL_LOW_FRAME_MAXIMUM_SUBSTEP_COUNT;
-                    physics_substep_delta_time = INTERNAL_LOW_FRAME_SUBSTEP_DELTA_TIME;
-                }
-                break;
-                case BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_MEDIUM:
-                {
-                    physics_max_substep_count = INTERNAL_MEDIUM_FRAME_MAXIMUM_SUBSTEP_COUNT;
-                    physics_substep_delta_time = INTERNAL_MEDIUM_FRAME_SUBSTEP_DELTA_TIME;
-                }
-                break;
-                default:
-                {
-                    assert(BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_HIGH == physics_ragdoll_quality);
-                    physics_max_substep_count = INTERNAL_HIGH_FRAME_MAXIMUM_SUBSTEP_COUNT;
-                    physics_substep_delta_time = INTERNAL_HIGH_FRAME_SUBSTEP_DELTA_TIME;
-                }
-                }
-            }
-            else
+            switch (physics_ragdoll_quality)
             {
-                physics_delta_time = INTERNAL_PHYSICS_SYNCHRONIZATION_DELTA_TIME;
-                physics_max_substep_count = INTERNAL_PHYSICS_SYNCHRONIZATION_MAXIMUM_SUBSTEP_COUNT;
-                physics_substep_delta_time = INTERNAL_PHYSICS_SYNCHRONIZATION_SUBSTEP_DELTA_TIME;
-                this->m_joint_input_continuous = true;
+            case BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_LOW:
+            {
+                physics_max_substep_count = INTERNAL_LOW_FRAME_MAXIMUM_SUBSTEP_COUNT;
+                physics_substep_delta_time = INTERNAL_LOW_FRAME_SUBSTEP_DELTA_TIME;
+            }
+            break;
+            case BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_MEDIUM:
+            {
+                physics_max_substep_count = INTERNAL_MEDIUM_FRAME_MAXIMUM_SUBSTEP_COUNT;
+                physics_substep_delta_time = INTERNAL_MEDIUM_FRAME_SUBSTEP_DELTA_TIME;
+            }
+            break;
+            default:
+            {
+                assert(BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_HIGH == physics_ragdoll_quality);
+                physics_max_substep_count = INTERNAL_HIGH_FRAME_MAXIMUM_SUBSTEP_COUNT;
+                physics_substep_delta_time = INTERNAL_HIGH_FRAME_SUBSTEP_DELTA_TIME;
+            }
             }
         }
         else
         {
-            if (this->m_joint_input_continuous)
-            {
-                physics_delta_time = (INTERNAL_FRAME_DELTA_TIME * 0.5F);
+            physics_delta_time = (INTERNAL_FRAME_DELTA_TIME * 0.5F);
 
-                switch (physics_ragdoll_quality)
-                {
-                case BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_LOW:
-                {
-                    physics_max_substep_count = INTERNAL_LOW_FRAME_MAXIMUM_SUBSTEP_COUNT;
-                    physics_substep_delta_time = INTERNAL_LOW_FRAME_SUBSTEP_DELTA_TIME;
-                }
-                break;
-                case BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_MEDIUM:
-                {
-                    physics_max_substep_count = INTERNAL_MEDIUM_FRAME_MAXIMUM_SUBSTEP_COUNT;
-                    physics_substep_delta_time = INTERNAL_MEDIUM_FRAME_SUBSTEP_DELTA_TIME;
-                }
-                break;
-                default:
-                {
-                    assert(BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_HIGH == physics_ragdoll_quality);
-                    physics_max_substep_count = INTERNAL_HIGH_FRAME_MAXIMUM_SUBSTEP_COUNT;
-                    physics_substep_delta_time = INTERNAL_HIGH_FRAME_SUBSTEP_DELTA_TIME;
-                }
-                }
-            }
-            else
+            switch (physics_ragdoll_quality)
             {
-                physics_delta_time = INTERNAL_PHYSICS_SYNCHRONIZATION_DELTA_TIME;
-                physics_max_substep_count = INTERNAL_PHYSICS_SYNCHRONIZATION_MAXIMUM_SUBSTEP_COUNT;
-                physics_substep_delta_time = INTERNAL_PHYSICS_SYNCHRONIZATION_SUBSTEP_DELTA_TIME;
-                this->m_joint_input_continuous = true;
+            case BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_LOW:
+            {
+                physics_max_substep_count = INTERNAL_LOW_FRAME_MAXIMUM_SUBSTEP_COUNT;
+                physics_substep_delta_time = INTERNAL_LOW_FRAME_SUBSTEP_DELTA_TIME;
+            }
+            break;
+            case BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_MEDIUM:
+            {
+                physics_max_substep_count = INTERNAL_MEDIUM_FRAME_MAXIMUM_SUBSTEP_COUNT;
+                physics_substep_delta_time = INTERNAL_MEDIUM_FRAME_SUBSTEP_DELTA_TIME;
+            }
+            break;
+            default:
+            {
+                assert(BRX_MOTION_PHYSICS_RAGDOLL_QUALITY_HIGH == physics_ragdoll_quality);
+                physics_max_substep_count = INTERNAL_HIGH_FRAME_MAXIMUM_SUBSTEP_COUNT;
+                physics_substep_delta_time = INTERNAL_HIGH_FRAME_SUBSTEP_DELTA_TIME;
+            }
             }
         }
 
@@ -3325,7 +3281,7 @@ inline void brx_motion_animation_skeleton_instance::ragdoll(mcrt_vector<DirectX:
             DirectX::XMStoreFloat3(&ragdoll_translation, simd_ragdoll_translation);
         }
 
-        brx_physics_rigid_body_set_transform(g_physics_context, this->m_physics_world, this->m_physics_rigid_bodies[ragdoll_direct_mapping.m_joint_index_b], &ragdoll_rotation.x, &ragdoll_translation.x);
+        brx_physics_rigid_body_apply_key_frame(g_physics_context, this->m_physics_world, this->m_physics_rigid_bodies[ragdoll_direct_mapping.m_joint_index_b], &ragdoll_rotation.x, &ragdoll_translation.x, physics_delta_time, physics_max_substep_count, physics_substep_delta_time);
     }
 
     //

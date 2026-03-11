@@ -97,9 +97,6 @@
     <ClInclude Include="..\source\brx_motion_vmc_motion_receiver.h">
       <Filter>source</Filter>
     </ClInclude>
-    <ClInclude Include="..\source\brx_motion_motion_receiver.h">
-      <Filter>source</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="..\thirdparty\mediapipe\build-windows\bin\win32\mediapipe.dll">
