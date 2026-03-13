@@ -148,8 +148,6 @@ class brx_motion_animation_animation_instance final : public brx_motion_animatio
 
 	uint32_t m_frame_index;
 
-	bool m_continuous;
-
 public:
 	inline brx_motion_animation_animation_instance();
 	inline ~brx_motion_animation_animation_instance();
@@ -238,7 +236,7 @@ class brx_motion_animation_skeleton_instance final : public brx_motion_skeleton_
 	uint32_t m_morph_input_face_index;
 	uint32_t m_morph_input_hand_index;
 
-	DirectX::XMFLOAT4 m__face_morph_joint_rotations_local_space[INTERNAL_MOTION_CAPTURE_FACE_MORPH_JOINT_NAME_COUNT];
+	DirectX::XMFLOAT4 m_face_morph_joint_rotations_local_space[INTERNAL_MOTION_CAPTURE_FACE_MORPH_JOINT_NAME_COUNT];
 
 	brx_motion_animation_animation_instance const *m_morph_input_animation_instance;
 
@@ -247,20 +245,17 @@ class brx_motion_animation_skeleton_instance final : public brx_motion_skeleton_
 	uint32_t m_joint_input_face_index;
 	uint32_t m_joint_input_hand_index;
 
-	bool m__pose_skeleton_joint_translations_model_space_valid[INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_COUNT];
-	DirectX::XMFLOAT3 m__pose_skeleton_joint_translations_model_space[INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_COUNT];
-	DirectX::XMFLOAT4 m__pose_skeleton_joint_rotations_local_space[14];
+	bool m_pose_skeleton_joint_translations_model_space_valid[INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_COUNT];
+	DirectX::XMFLOAT3 m_pose_skeleton_joint_translations_model_space[INTERNAL_MOTION_CAPTURE_POSE_SKELETON_JOINT_NAME_COUNT];
+	DirectX::XMFLOAT4 m_pose_skeleton_joint_rotations_local_space[14];
 
-	DirectX::XMFLOAT4 m__face_skeleton_joint_rotations_local_space[INTERNAL_MOTION_CAPTURE_FACE_SKELETON_JOINT_NAME_COUNT];
+	DirectX::XMFLOAT4 m_face_skeleton_joint_rotations_local_space[INTERNAL_MOTION_CAPTURE_FACE_SKELETON_JOINT_NAME_COUNT];
 
-	bool m__hand_skeleton_joint_translations_model_space_valid[INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_COUNT];
-	DirectX::XMFLOAT3 m__hand_skeleton_joint_translations_model_space[INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_COUNT];
-	DirectX::XMFLOAT4 m__hand_skeleton_joint_rotations_local_space[32];
+	bool m_hand_skeleton_joint_translations_model_space_valid[INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_COUNT];
+	DirectX::XMFLOAT3 m_hand_skeleton_joint_translations_model_space[INTERNAL_MOTION_CAPTURE_HAND_SKELETON_JOINT_NAME_COUNT];
+	DirectX::XMFLOAT4 m_hand_skeleton_joint_rotations_local_space[32];
 
 	brx_motion_animation_animation_instance const *m_joint_input_animation_instance;
-
-	// only joint input can affect ragdoll
-	bool m_joint_input_continuous;
 
 public:
 	inline brx_motion_animation_skeleton_instance();
