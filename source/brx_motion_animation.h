@@ -89,16 +89,34 @@ struct brx_animation_physics_rigid_body
 
 struct brx_animation_physics_constraint
 {
-	uint32_t m_rigid_body_a_index;
-	uint32_t m_rigid_body_b_index;
+	uint32_t m_rigid_body_reference_index;
+	uint32_t m_rigid_body_attached_index;
 	BRX_PHYSICS_CONSTRAINT_TYPE m_constraint_type;
-	float m_pivot[3];
-	float m_twist_axis[3];
-	float m_plane_axis[3];
-	float m_normal_axis[3];
-	float m_twist_limit[2];
-	float m_plane_limit[2];
-	float m_normal_limit[2];
+	union
+	{
+		struct
+		{
+			float m_pivot[3];
+			float m_twist_axis[3];
+			float m_plane_axis[3];
+			float m_normal_axis[3];
+			float m_twist_limit[2];
+			float m_plane_limit[2];
+			float m_normal_limit[2];
+		} m_ragdoll;
+
+		struct
+		{
+			float m_rotation[4];
+			float m_translation[3];
+			float m_rotation_limit_min[3];
+			float m_rotation_limit_max[3];
+			float m_translation_limit_min[3];
+			float m_translation_limit_max[3];
+			float m_rotation_spring[3];
+			float m_translation_spring[3];
+		} m_6dof;
+	};
 };
 
 struct brx_animation_ragdoll_direct_mapping

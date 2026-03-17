@@ -392,11 +392,8 @@ enum BRX_MOTION_PHYSICS_RIGID_BODY_MOTION_TYPE : uint32_t
 
 enum BRX_MOTION_PHYSICS_CONSTRAINT_TYPE : uint32_t
 {
-    BRX_MOTION_PHYSICS_CONSTRAINT_FIXED = 0,
-    BRX_MOTION_PHYSICS_CONSTRAINT_BALL_AND_SOCKET = 1,
-    BRX_MOTION_PHYSICS_CONSTRAINT_HINGE = 2,
-    BRX_MOTION_PHYSICS_CONSTRAINT_PRISMATIC = 3,
-    BRX_MOTION_PHYSICS_CONSTRAINT_RAGDOLL = 4
+    BRX_MOTION_PHYSICS_CONSTRAINT_RAGDOLL = 0,
+    BRX_MOTION_PHYSICS_CONSTRAINT_6DOF = 1
 };
 
 enum BRX_MOTION_PHYSICS_RAGDOLL_QUALITY : uint32_t
@@ -460,16 +457,34 @@ struct brx_motion_physics_rigid_body
 
 struct brx_motion_physics_constraint
 {
-    uint32_t m_rigid_body_a_index;
-    uint32_t m_rigid_body_b_index;
+    uint32_t m_rigid_body_reference_index;
+    uint32_t m_rigid_body_attached_index;
     BRX_MOTION_PHYSICS_CONSTRAINT_TYPE m_constraint_type;
-    float m_pivot[3];
-    float m_twist_axis[3];
-    float m_plane_axis[3];
-    float m_normal_axis[3];
-    float m_twist_limit[2];
-    float m_plane_limit[2];
-    float m_normal_limit[2];
+    union
+    {
+        struct
+        {
+            float m_pivot[3];
+            float m_twist_axis[3];
+            float m_plane_axis[3];
+            float m_normal_axis[3];
+            float m_twist_limit[2];
+            float m_plane_limit[2];
+            float m_normal_limit[2];
+        } m_ragdoll;
+
+        struct
+        {
+            float m_rotation[4];
+            float m_translation[3];
+            float m_rotation_limit_min[3];
+            float m_rotation_limit_max[3];
+            float m_translation_limit_min[3];
+            float m_translation_limit_max[3];
+            float m_rotation_spring[3];
+            float m_translation_spring[3];
+        } m_6dof;
+    };
 };
 
 struct brx_motion_ragdoll_direct_mapping

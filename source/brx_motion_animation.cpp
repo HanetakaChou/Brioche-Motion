@@ -48,12 +48,9 @@ static inline BRX_PHYSICS_RIGID_BODY_MOTION_TYPE wrap(BRX_MOTION_PHYSICS_RIGID_B
 
 static inline BRX_PHYSICS_CONSTRAINT_TYPE wrap(BRX_MOTION_PHYSICS_CONSTRAINT_TYPE constraint_type)
 {
-    static_assert(static_cast<uint32_t>(BRX_PHYSICS_CONSTRAINT_FIXED) == static_cast<uint32_t>(BRX_MOTION_PHYSICS_CONSTRAINT_FIXED), "");
-    static_assert(static_cast<uint32_t>(BRX_PHYSICS_CONSTRAINT_BALL_AND_SOCKET) == static_cast<uint32_t>(BRX_MOTION_PHYSICS_CONSTRAINT_BALL_AND_SOCKET), "");
-    static_assert(static_cast<uint32_t>(BRX_PHYSICS_CONSTRAINT_HINGE) == static_cast<uint32_t>(BRX_MOTION_PHYSICS_CONSTRAINT_HINGE), "");
-    static_assert(static_cast<uint32_t>(BRX_PHYSICS_CONSTRAINT_PRISMATIC) == static_cast<uint32_t>(BRX_MOTION_PHYSICS_CONSTRAINT_PRISMATIC), "");
     static_assert(static_cast<uint32_t>(BRX_PHYSICS_CONSTRAINT_RAGDOLL) == static_cast<uint32_t>(BRX_MOTION_PHYSICS_CONSTRAINT_RAGDOLL), "");
-    assert(BRX_MOTION_PHYSICS_CONSTRAINT_FIXED == constraint_type || BRX_MOTION_PHYSICS_CONSTRAINT_BALL_AND_SOCKET == constraint_type || BRX_MOTION_PHYSICS_CONSTRAINT_HINGE == constraint_type || BRX_MOTION_PHYSICS_CONSTRAINT_PRISMATIC == constraint_type || BRX_MOTION_PHYSICS_CONSTRAINT_RAGDOLL == constraint_type);
+    static_assert(static_cast<uint32_t>(BRX_PHYSICS_CONSTRAINT_6DOF) == static_cast<uint32_t>(BRX_MOTION_PHYSICS_CONSTRAINT_6DOF), "");
+    assert(BRX_MOTION_PHYSICS_CONSTRAINT_RAGDOLL == constraint_type || BRX_MOTION_PHYSICS_CONSTRAINT_6DOF == constraint_type);
     return static_cast<BRX_PHYSICS_CONSTRAINT_TYPE>(constraint_type);
 }
 
@@ -449,36 +446,76 @@ extern "C" brx_motion_skeleton *brx_motion_create_skeleton(uint32_t animation_sk
     {
         for (uint32_t ragdoll_skeleton_constraint_index = 0U; ragdoll_skeleton_constraint_index < ragdoll_skeleton_constraint_count; ++ragdoll_skeleton_constraint_index)
         {
-            ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_rigid_body_a_index = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_rigid_body_a_index;
+            ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_rigid_body_reference_index = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_rigid_body_reference_index;
 
-            ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_rigid_body_b_index = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_rigid_body_b_index;
+            ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_rigid_body_attached_index = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_rigid_body_attached_index;
 
             ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_constraint_type = wrap(wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_constraint_type);
 
-            ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_pivot[0] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_pivot[0];
-            ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_pivot[1] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_pivot[1];
-            ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_pivot[2] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_pivot[2];
+            if (BRX_MOTION_PHYSICS_CONSTRAINT_RAGDOLL == wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_constraint_type)
+            {
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_pivot[0] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_pivot[0];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_pivot[1] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_pivot[1];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_pivot[2] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_pivot[2];
 
-            ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_twist_axis[0] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_twist_axis[0];
-            ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_twist_axis[1] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_twist_axis[1];
-            ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_twist_axis[2] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_twist_axis[2];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_twist_axis[0] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_twist_axis[0];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_twist_axis[1] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_twist_axis[1];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_twist_axis[2] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_twist_axis[2];
 
-            ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_plane_axis[0] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_plane_axis[0];
-            ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_plane_axis[1] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_plane_axis[1];
-            ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_plane_axis[2] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_plane_axis[2];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_plane_axis[0] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_plane_axis[0];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_plane_axis[1] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_plane_axis[1];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_plane_axis[2] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_plane_axis[2];
 
-            ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_normal_axis[0] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_normal_axis[0];
-            ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_normal_axis[1] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_normal_axis[1];
-            ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_normal_axis[2] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_normal_axis[2];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_normal_axis[0] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_normal_axis[0];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_normal_axis[1] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_normal_axis[1];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_normal_axis[2] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_normal_axis[2];
 
-            ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_twist_limit[0] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_twist_limit[0];
-            ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_twist_limit[1] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_twist_limit[1];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_twist_limit[0] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_twist_limit[0];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_twist_limit[1] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_twist_limit[1];
 
-            ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_plane_limit[0] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_plane_limit[0];
-            ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_plane_limit[1] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_plane_limit[1];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_plane_limit[0] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_plane_limit[0];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_plane_limit[1] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_plane_limit[1];
 
-            ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_normal_limit[0] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_normal_limit[0];
-            ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_normal_limit[1] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_normal_limit[1];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_normal_limit[0] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_normal_limit[0];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_normal_limit[1] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_ragdoll.m_normal_limit[1];
+            }
+            else
+            {
+                assert(BRX_MOTION_PHYSICS_CONSTRAINT_6DOF == wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_constraint_type);
+
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation[0] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation[0];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation[1] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation[1];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation[2] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation[2];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation[3] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation[3];
+
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation[0] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation[0];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation[1] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation[1];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation[2] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation[2];
+
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation_limit_min[0] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation_limit_min[0];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation_limit_min[1] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation_limit_min[1];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation_limit_min[2] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation_limit_min[2];
+
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation_limit_max[0] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation_limit_max[0];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation_limit_max[1] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation_limit_max[1];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation_limit_max[2] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation_limit_max[2];
+
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation_limit_min[0] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation_limit_min[0];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation_limit_min[1] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation_limit_min[1];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation_limit_min[2] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation_limit_min[2];
+
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation_limit_max[0] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation_limit_max[0];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation_limit_max[1] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation_limit_max[1];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation_limit_max[2] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation_limit_max[2];
+
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation_spring[0] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation_spring[0];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation_spring[1] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation_spring[1];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation_spring[2] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_rotation_spring[2];
+
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation_spring[0] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation_spring[0];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation_spring[1] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation_spring[1];
+                ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation_spring[2] = wrapped_ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index].m_6dof.m_translation_spring[2];
+            }
         }
     }
 
@@ -1154,8 +1191,16 @@ inline void brx_motion_animation_skeleton_instance::init(brx_motion_animation_sk
         {
             brx_animation_physics_constraint const &ragdoll_skeleton_constraint = ragdoll_skeleton_constraints[ragdoll_skeleton_constraint_index];
 
-            brx_physics_constraint *const physics_constraint = brx_physics_create_constraint(g_physics_context, this->m_physics_world, this->m_physics_rigid_bodies[ragdoll_skeleton_constraint.m_rigid_body_a_index], this->m_physics_rigid_bodies[ragdoll_skeleton_constraint.m_rigid_body_b_index], ragdoll_skeleton_constraint.m_constraint_type, ragdoll_skeleton_constraint.m_pivot, ragdoll_skeleton_constraint.m_twist_axis, ragdoll_skeleton_constraint.m_plane_axis, ragdoll_skeleton_constraint.m_normal_axis, ragdoll_skeleton_constraint.m_twist_limit, ragdoll_skeleton_constraint.m_plane_limit, ragdoll_skeleton_constraint.m_normal_limit);
-
+            brx_physics_constraint *physics_constraint;
+            if (BRX_PHYSICS_CONSTRAINT_RAGDOLL == ragdoll_skeleton_constraint.m_constraint_type)
+            {
+                physics_constraint = brx_physics_create_ragdoll_constraint(g_physics_context, this->m_physics_world, this->m_physics_rigid_bodies[ragdoll_skeleton_constraint.m_rigid_body_reference_index], this->m_physics_rigid_bodies[ragdoll_skeleton_constraint.m_rigid_body_attached_index], ragdoll_skeleton_constraint.m_ragdoll.m_pivot, ragdoll_skeleton_constraint.m_ragdoll.m_twist_axis, ragdoll_skeleton_constraint.m_ragdoll.m_plane_axis, ragdoll_skeleton_constraint.m_ragdoll.m_normal_axis, ragdoll_skeleton_constraint.m_ragdoll.m_twist_limit, ragdoll_skeleton_constraint.m_ragdoll.m_plane_limit, ragdoll_skeleton_constraint.m_ragdoll.m_normal_limit);
+            }
+            else
+            {
+                assert(BRX_PHYSICS_CONSTRAINT_6DOF == ragdoll_skeleton_constraint.m_constraint_type);
+                physics_constraint = brx_physics_create_6dof_constraint(g_physics_context, this->m_physics_world, this->m_physics_rigid_bodies[ragdoll_skeleton_constraint.m_rigid_body_reference_index], this->m_physics_rigid_bodies[ragdoll_skeleton_constraint.m_rigid_body_attached_index], ragdoll_skeleton_constraint.m_6dof.m_rotation, ragdoll_skeleton_constraint.m_6dof.m_translation, ragdoll_skeleton_constraint.m_6dof.m_rotation_limit_min, ragdoll_skeleton_constraint.m_6dof.m_rotation_limit_max, ragdoll_skeleton_constraint.m_6dof.m_translation_limit_min, ragdoll_skeleton_constraint.m_6dof.m_translation_limit_max, ragdoll_skeleton_constraint.m_6dof.m_rotation_spring, ragdoll_skeleton_constraint.m_6dof.m_translation_spring);
+            }
             brx_physics_world_add_constraint(g_physics_context, this->m_physics_world, physics_constraint);
 
             this->m_physics_constraints[ragdoll_skeleton_constraint_index] = physics_constraint;
