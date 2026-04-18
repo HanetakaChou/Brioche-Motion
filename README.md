@@ -3,6 +3,8 @@
 - [x] Motion Capture  
     - [x] Video Capture (Backend [OpenCV](https://github.com/HanetakaChou/OpenCV))  
     - [x] Motion Detector (Backend [MeidaPipe](https://github.com/HanetakaChou/mediapipe))  
+- [x] Motion Receiver  
+    - [x] [VMC Protocal](https://protocol.vmc.info/)  
 - [ ] Animation  
     - [ ] IK (Inverse Kinematics)  
         - [ ] Reaching IK (Target Position)  
